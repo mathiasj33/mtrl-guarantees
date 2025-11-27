@@ -1,0 +1,21 @@
+defaults:
+  - experiment: deep_ltl/letter
+  - formulas: zones/custom
+  - hydra: simple
+  - _self_
+
+run: tmp
+env:
+  use_precomputed_resets: true # setting to true ignores default options
+  precomputed_resets_path: sampled_resets_test.eqx
+eval:
+  num_episodes: 512
+  deterministic: false
+  discount: 0.998
+plotting:
+  plot: true
+  num_trajectories: 8
+  rows: 2
+  cols: 4
+# formulas:
+#   - F g

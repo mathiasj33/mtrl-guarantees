@@ -1,0 +1,10 @@
+name: RGBZoneEnv
+use_precomputed_resets: true # setting to true ignores default options
+precomputed_resets_path: sampled_resets_train.eqx
+default_options:
+  _target_: jaxltl.environments.rgb_zone_env.rgb_zone_env.ResetOptions
+  rgb_limits:
+    - [[0.0, 0.2], [0.0, 0.2], [0.0, 0.2]] # zone 0
+    - [[0.8, 1.0], [0.0, 0.2], [0.0, 0.2]] # zone 1
+    - [[0.0, 0.2], [0.8, 1.0], [0.0, 0.2]] # zone 2
+    - [[0.0, 0.2], [0.0, 0.2], [0.8, 1.0]] # zone 3

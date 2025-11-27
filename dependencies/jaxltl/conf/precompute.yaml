@@ -1,0 +1,10 @@
+defaults:
+  - experiment: deep_ltl/zones
+  - hydra: simple
+  - _self_
+
+rl_alg:
+  num_envs: 2048
+# precompute-specific params
+num_resets: 1e6
+train: true

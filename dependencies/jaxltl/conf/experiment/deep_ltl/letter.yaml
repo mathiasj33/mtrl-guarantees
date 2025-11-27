@@ -1,0 +1,52 @@
+# @package __global__
+
+defaults:
+  - /env: letter_world
+  - /alg: deep_ltl
+  - /rl_alg: ppo
+
+curriculum:
+  _target_: jaxltl.deep_ltl.curriculum.letter_world_curriculum.make
+
+curriculum_wrapper:
+  episode_window: 512
+
+model:
+  _target_: jaxltl.deep_ltl.model.deep_ltl.DeepLTLModel
+  _recursive_: false
+  env_net:
+    _target_: jaxltl.networks.conv_net.ConvNet
+    channels: [16, 32, 64]
+    kernel_size: [2, 2]
+    activation: ${act:relu}
+  actor:
+    _target_: jaxltl.deep_ltl.model.actor.discrete_actor.DiscreteActor
+    hidden_sizes: [64, 64, 64]
+    activation: ${act:relu}
+  critic:
+    _target_: jaxltl.networks.mlp.MLP
+    hidden_sizes: [64, 64]
+    activation: ${act:tanh}
+  sequence:
+    embedding_dim: 32
+    deep_sets:
+      _target_: jaxltl.networks.deep_sets.DeepSets
+      hidden_sizes: [32]
+      out_size: 32
+      activation: ${act:relu}
+
+rl_alg:
+  total_timesteps: 5e6
+  num_envs: 16
+  num_steps: 128
+  num_minibatches: 8
+  update_epochs: 8
+  gamma: 0.94
+  gae_lambda: 0.95
+  clip_eps: 0.2
+  ent_coef: 0.01
+  vf_coef: 0.5
+  lr: 3e-4
+  max_grad_norm: 0.5
+  anneal_lr: false
+  adam_eps: 1e-8

@@ -1,0 +1,13 @@
+defaults:
+  - experiment: deep_ltl/zones
+  - hydra: simple
+  - _self_
+
+run: deepltl
+env:
+  use_precomputed_resets: true # setting to true ignores default options
+  precomputed_resets_path: sampled_resets_test.eqx
+eval:
+  num_episodes: 16
+  deterministic: false
+  discount: 0.998
