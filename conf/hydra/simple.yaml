@@ -1,0 +1,16 @@
+# A simple Hydra config that logs to a file in the outputs directory
+output_subdir: null
+job:
+  chdir: false
+run:
+  dir: outputs
+job_logging:
+  formatters:
+    simple:
+      format: "[%(asctime)s][%(levelname)s] %(message)s"
+      datefmt: "%H:%M:%S"
+  handlers:
+    file:
+      class: logging.FileHandler
+      formatter: simple
+      mode: w
