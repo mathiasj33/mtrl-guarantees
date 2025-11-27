@@ -1,0 +1,5 @@
+name: ZoneEnv
+use_precomputed_resets: true # setting to true ignores default options
+precomputed_resets_path: sampled_resets_train.eqx
+precomputed_curriculum_path: sampled_curriculum.eqx
+default_options: null

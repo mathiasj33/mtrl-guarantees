@@ -1,0 +1,6 @@
+- "F (green & (!red U yellow)) & F purple"
+- "(F red) & (!red U (green & F yellow))"
+- "F (red | green) & F yellow & F purple"
+- "!(purple | yellow) U (red & F green)"
+- "!green U ((red | purple) & (!green U yellow))"
+- "((green | red) => (!yellow U purple)) U yellow"

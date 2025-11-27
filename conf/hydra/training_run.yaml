@@ -1,0 +1,17 @@
+# Hydra config for a training run that logs to a file in a structured output directory
+run:
+  dir: runs/${env.name}/${run}
+
+job:
+  chdir: true # Change the working directory to the output directory
+
+job_logging:
+  formatters:
+    simple:
+      format: "[%(asctime)s][%(levelname)s] %(message)s"
+      datefmt: "%H:%M:%S"
+  handlers:
+    file:
+      class: logging.FileHandler
+      formatter: simple
+      mode: w

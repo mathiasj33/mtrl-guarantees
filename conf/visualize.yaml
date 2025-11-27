@@ -1,0 +1,10 @@
+defaults:
+  - experiment: deep_ltl/letter
+  - hydra: simple
+  - _self_
+
+env:
+  use_precomputed_resets: false # setting to true ignores default options
+  precomputed_resets_path: sampled_resets_test.eqx
+policy: "teleop" # "teleop" or "random"
+print_debug: true
