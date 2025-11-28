@@ -36,7 +36,7 @@ def main(cfg: DictConfig):
         label="Actual Guarantees",
     )
     axes[1].set_title("Performance Guarantees")
-    axes[1].set_xlabel("Satisfaction Probability (δ)")
+    axes[1].set_xlabel("Satisfaction Probability (1-δ)")
     axes[1].set_ylabel("Performance Guarantee (t)")
     axes[1].legend()
 
