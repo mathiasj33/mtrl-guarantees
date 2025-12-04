@@ -10,6 +10,7 @@ import hydra
 import jax
 import jax.numpy as jnp
 from omegaconf import DictConfig
+from tqdm import tqdm
 
 import jaxltl
 from jaxltl import DATA_DIR, eqx_utils
@@ -62,7 +63,7 @@ def preprocess_formulas(
     """Preprocesses formulas into a batched JaxLDBA and batched JaxReachAvoidSequence."""
 
     ldbas, seqs = [], []
-    for formula in formulas:
+    for formula in tqdm(formulas):
         ldba, batched_seqs = _preprocess_formula(formula, env)
         ldbas.append(ldba)
         seqs.append(batched_seqs)
@@ -274,6 +275,7 @@ def _batch_graph_sequences(
 
 def load_batched_models(
     cfg: DictConfig,
+    path: Path,
     env: Environment | EnvWrapper,
     env_params: EnvParams,
     *,
@@ -281,8 +283,7 @@ def load_batched_models(
 ) -> ActorCritic:
     """Load a batched model (over seeds) from disk."""
 
-    model_path = f"runs/{cfg.env.name}/{cfg.run}/models.eqx"
-    metadata = eqx_utils.load_metadata(model_path)
+    metadata = eqx_utils.load_metadata(path)
     num_models = metadata["num_models"]
     model_fn = hydra.utils.instantiate(
         cfg.model,
@@ -294,7 +295,7 @@ def load_batched_models(
     )
     model: ActorCritic = model_fn(act_space=env.action_space(env_params))
     models = eqx_utils.add_batch_dim(model, num_models)
-    models = eqx_utils.load(model_path, models)
+    models = eqx_utils.load(path, models)
     return models
 
 

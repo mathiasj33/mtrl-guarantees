@@ -3,8 +3,6 @@ local/
 outputs/
 runs/
 *.zip
-data/
-dependencies/
 ldba.png
 .VSCodeCounter/
 

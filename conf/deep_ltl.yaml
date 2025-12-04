@@ -1,0 +1,49 @@
+defaults:
+  - hydra: experiment
+  - _self_
+
+name: deep_ltl
+num_tasks: 100
+num_episodes: 1000
+batch_size: 50 # number of formulas to evaluate in parallel
+deterministic: false
+tasks:
+  depth: [1, 3]
+  reach: [1, 2]
+  avoid: [0, 1]
+bounds:
+  gamma: 1e-4
+  eta: 1e-2
+  step_size: 5
+  n_jobs: 8
+
+env:
+  name: ZoneEnv
+  use_precomputed_resets: true # setting to true ignores default options
+  precomputed_resets_path: sampled_resets_test.eqx
+
+model:
+  _target_: jaxltl.deep_ltl.model.deep_ltl.DeepLTLModel
+  _recursive_: false
+  env_net:
+    _target_: jaxltl.networks.mlp.MLP
+    hidden_sizes: [128]
+    out_size: 64
+    activation: ${act:tanh}
+  actor:
+    _target_: jaxltl.deep_ltl.model.actor.continuous_actor.ContinuousActor
+    hidden_sizes: [64, 64, 64]
+    hidden_activation: ${act:relu}
+    output_activation: ${act:tanh}
+    state_dependent_std: true
+  critic:
+    _target_: jaxltl.networks.mlp.MLP
+    hidden_sizes: [64, 64]
+    activation: ${act:tanh}
+  sequence:
+    embedding_dim: 16
+    deep_sets:
+      _target_: jaxltl.networks.deep_sets.DeepSets
+      hidden_sizes: [32]
+      out_size: 16
+      activation: ${act:relu}
