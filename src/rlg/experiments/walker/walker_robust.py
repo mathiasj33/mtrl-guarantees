@@ -20,7 +20,7 @@ class WalkerTaskParams(NamedTuple):
 class WalkerRobust(PlanarWalker):
     """Walker environment with robust task variations (Mass, Body)."""
 
-    def __init__(self, move_speed: float = 1.0, task_mode: str = "body"):
+    def __init__(self, move_speed: float = 6.0, task_mode: str = "body"):
         """
         Args:
             move_speed: Target speed.
@@ -121,8 +121,8 @@ class WalkerRobust(PlanarWalker):
             model,
             qpos=qpos,
             impl=model.impl.value,
-            nconmax=self._config.nconmax,
-            njmax=self._config.njmax,
+            nconmax=self._config.nconmax,  # type: ignore
+            njmax=self._config.njmax,  # type: ignore
         )
 
         # Forward kinematics with task model 'm'
