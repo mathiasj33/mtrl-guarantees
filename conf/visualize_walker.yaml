@@ -1,0 +1,33 @@
+defaults:
+  - hydra: simple
+  - _self_
+
+name: visualize_walker
+
+# Environment settings
+env:
+  task_mode: body # "mass" (only scale mass) or "body" (mass, head size, damping)
+
+# Checkpoint settings
+checkpoint:
+  path: null # Path to checkpoint directory. If null, uses latest from runs/walker/walker_ckp
+
+# Task parameters for visualization
+task:
+  mass_scale: 1.0
+  size_scale: 1.0
+  damping_scale: 1.0
+
+# Rollout settings
+rollout:
+  num_steps: 1000
+  deterministic: true
+
+# Rendering settings
+render:
+  camera: side
+  render_every: 1
+  output_path: videos/walker_rollout.mp4
+
+# Random seed
+seed: 0

@@ -5,6 +5,8 @@ runs/
 *.zip
 ldba.png
 .VSCodeCounter/
+walker_ckp
+videos/
 
 # Pixi environments
 .pixi
