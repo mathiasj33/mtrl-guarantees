@@ -1,0 +1,26 @@
+defaults:
+  - hydra: experiment
+  - _self_
+
+name: walker
+
+# Environment settings
+env:
+  task_mode: body # "mass" (only scale mass) or "body" (mass, head size, damping)
+
+# Task sampling settings (log-uniform distribution)
+task_sampling:
+  log_tau_min: -1.0
+  log_tau_max: 1.0
+
+# Checkpoint settings
+checkpoint:
+  path: walker_ckp
+
+# Evaluation settings
+eval:
+  num_episodes: 10
+  deterministic: true
+
+# Random seed
+seed: 0

@@ -134,6 +134,89 @@ def create_run_single_episode(env: WalkerRobust, inference_fn, episode_length: i
     return run_single_episode
 
 
+def create_run_batch_episode(
+    env: WalkerRobust,
+    inference_fn,
+    episode_length: int,
+    deterministic: bool,
+):
+    """Batched episode evaluation. If deterministic, avoid per-step RNG splitting."""
+
+    if deterministic:
+        fixed_key = jax.random.PRNGKey(0)
+
+        def run_batch_episode(
+            rng_batch: jax.Array, task_params_batch: WalkerTaskParams
+        ) -> jax.Array:
+            batch_size = rng_batch.shape[0]
+
+            # Vectorized reset
+            split_keys = jax.vmap(jax.random.split)(rng_batch)
+            reset_rngs = split_keys[:, 0]
+            state_batch = jax.vmap(env.reset)(reset_rngs, task_params_batch)
+
+            def step_fn(state_and_reward, _):
+                state, total_reward = state_and_reward
+
+                # Deterministic inference: pass a fixed key; no splitting
+                action_batch, _ = jax.vmap(lambda obs: inference_fn(obs, fixed_key))(
+                    state.obs
+                )
+
+                next_state = jax.vmap(env.step)(state, action_batch)
+                total_reward = total_reward + next_state.reward * (1.0 - state.done)
+                return (next_state, total_reward), None
+
+            initial_rewards = jnp.zeros((batch_size,))
+            (final_state, final_rewards), _ = jax.lax.scan(
+                step_fn,
+                (state_batch, initial_rewards),
+                None,
+                length=episode_length,
+            )
+            return final_rewards
+
+        return run_batch_episode
+
+    else:
+
+        def run_batch_episode(
+            rng_batch: jax.Array, task_params_batch: WalkerTaskParams
+        ) -> jax.Array:
+            batch_size = rng_batch.shape[0]
+
+            # Vectorized reset
+            split_keys = jax.vmap(jax.random.split)(rng_batch)
+            reset_rngs = split_keys[:, 0]
+            rng_batch = split_keys[:, 1]
+            state_batch = jax.vmap(env.reset)(reset_rngs, task_params_batch)
+
+            def step_fn(carry, _):
+                state, rngs, total_reward = carry
+
+                # Split keys per env per step
+                split_rngs = jax.vmap(jax.random.split)(rngs)
+                act_rngs = split_rngs[:, 0]
+                rngs = split_rngs[:, 1]
+
+                action_batch, _ = jax.vmap(inference_fn)(state.obs, act_rngs)
+                next_state = jax.vmap(env.step)(state, action_batch)
+
+                total_reward = total_reward + next_state.reward * (1.0 - state.done)
+                return (next_state, rngs, total_reward), None
+
+            initial_rewards = jnp.zeros((batch_size,))
+            (final_state, final_rngs, final_rewards), _ = jax.lax.scan(
+                step_fn,
+                (state_batch, rng_batch, initial_rewards),
+                None,
+                length=episode_length,
+            )
+            return final_rewards
+
+        return run_batch_episode
+
+
 def load_policy(cfg: DictConfig, env: WalkerRobust, rng: jax.Array):
     """Load the policy network and checkpoint.
 
@@ -199,67 +282,78 @@ def sample_and_save_tasks(
     return all_tasks, rng
 
 
-def run_evaluation(cfg, rng, all_tasks, run_single_episode_fn):
-    num_tasks = cfg.eval.num_tasks  # 1000
-    num_eps = cfg.eval.num_episodes_per_task  # 10000
+def run_evaluation(cfg, rng, all_tasks, run_batch_episode_fn):
+    num_tasks = cfg.eval.num_tasks
+    num_eps = cfg.eval.num_episodes_per_task
     total_episodes = num_tasks * num_eps
 
-    # SAFE BATCH SIZE: 1 million fits easily on 24GB VRAM
-    CHUNK_SIZE = min(1000000, total_episodes)
+    BATCH_SIZE = 8192
 
-    # Flatten everything first
+    # Host-side metadata (fine to keep on CPU for output)
     task_indices = np.repeat(np.arange(num_tasks), num_eps)
     episode_indices = np.tile(np.arange(num_eps), num_tasks)
 
-    # Prepare one big compiled function
-    # We jit a function that takes a specific number of keys/params (CHUNK_SIZE)
-    eval_chunk_fn = jax.jit(jax.vmap(run_single_episode_fn))
+    # JIT the batch runner
+    eval_batch_fn = jax.jit(run_batch_episode_fn)
 
-    # Compile the function once with dummy data
-    logger.info("Compiling evaluation function...")
+    # --- Compilation Warmup ---
+    logger.info(f"Compiling batch evaluation function (batch size={BATCH_SIZE})...")
     start = time.time()
-    dummy_keys = jax.random.split(rng, CHUNK_SIZE)
+    dummy_keys = jax.random.split(rng, BATCH_SIZE)
     dummy_params = WalkerTaskParams(
-        mass_scale=jnp.ones((CHUNK_SIZE,)),
-        size_scale=jnp.ones((CHUNK_SIZE,)),
-        damping_scale=jnp.ones((CHUNK_SIZE,)),
+        mass_scale=jnp.ones((BATCH_SIZE,)),
+        size_scale=jnp.ones((BATCH_SIZE,)),
+        damping_scale=jnp.ones((BATCH_SIZE,)),
     )
-    compiled = eval_chunk_fn.lower(dummy_keys, dummy_params).compile()
+    compiled = eval_batch_fn.lower(dummy_keys, dummy_params).compile()
     logger.info(f"Compilation complete in {time.time() - start:.2f} seconds")
 
-    all_returns = []
+    logger.info(f"Processing {total_episodes} episodes...")
+    start_eval = time.time()
 
-    logger.info(f"Processing {total_episodes} episodes in chunks of {CHUNK_SIZE}...")
-    start = time.time()
+    # Keep results on device until the end
+    device_returns = []
 
-    for i in trange(0, total_episodes, CHUNK_SIZE):
-        # Slice indices for this chunk
-        current_indices = task_indices[i : i + CHUNK_SIZE]
+    for i in trange(0, total_episodes, BATCH_SIZE):
+        start_idx = i
+        end_idx = min(i + BATCH_SIZE, total_episodes)
+        actual_batch_size = end_idx - start_idx
 
-        # Gather params for this chunk
-        # (Assuming all_tasks fields are numpy arrays)
-        chunk_mass = all_tasks.mass_scale[current_indices]
-        chunk_size = all_tasks.size_scale[current_indices]
-        chunk_damp = all_tasks.damping_scale[current_indices]
+        # Indices for this chunk (host -> device, small)
+        current_indices_np = task_indices[start_idx:end_idx]
+        current_indices = jnp.asarray(current_indices_np, dtype=jnp.int32)
 
+        # Pad indices ON DEVICE if last chunk is smaller
+        if actual_batch_size < BATCH_SIZE:
+            pad_len = BATCH_SIZE - actual_batch_size
+            last = current_indices[-1]
+            pad = jnp.full((pad_len,), last, dtype=current_indices.dtype)
+            current_indices = jnp.concatenate([current_indices, pad], axis=0)
+
+        # Gather task params ON DEVICE
         chunk_params = WalkerTaskParams(
-            mass_scale=jnp.array(chunk_mass),
-            size_scale=jnp.array(chunk_size),
-            damping_scale=jnp.array(chunk_damp),
+            mass_scale=jnp.take(all_tasks.mass_scale, current_indices),
+            size_scale=jnp.take(all_tasks.size_scale, current_indices),
+            damping_scale=jnp.take(all_tasks.damping_scale, current_indices),
         )
 
-        # Generate keys
         rng, chunk_key = jax.random.split(rng)
-        chunk_keys = jax.random.split(chunk_key, len(current_indices))
+        chunk_keys = jax.random.split(chunk_key, BATCH_SIZE)
 
-        # Run GPU
-        chunk_ret = compiled(chunk_keys, chunk_params)
-        all_returns.append(jax.device_get(chunk_ret))
+        batch_ret = compiled(chunk_keys, chunk_params)
+        device_returns.append(batch_ret)
 
-    logger.info(f"Evaluation complete in {time.time() - start:.2f} seconds")
+    # Concatenate on device, then one host transfer
+    total_returns = jnp.concatenate(device_returns, axis=0)
 
-    # Concatenate results
-    total_returns_np = np.concatenate(all_returns)
+    # Drop the padded extras (at most BATCH_SIZE-1)
+    total_returns = total_returns[:total_episodes]
+
+    # Ensure timing includes compute
+    total_returns.block_until_ready()
+    logger.info(f"Evaluation complete in {time.time() - start_eval:.2f} seconds")
+
+    total_returns_np = np.asarray(jax.device_get(total_returns))
 
     return pl.DataFrame(
         {
@@ -314,11 +408,13 @@ def main(cfg: DictConfig):
     # Create vectorized evaluation function
     episode_length = cfg.env.episode_length
     # evaluate_batch = create_vectorized_evaluation(env, inference_fn, episode_length)
-    evaluate_single = create_run_single_episode(env, inference_fn, episode_length)
+    evaluate_batch = create_run_batch_episode(
+        env, inference_fn, episode_length, deterministic=cfg.eval.deterministic
+    )
 
     # Run evaluation
     # results_df = run_evaluation(cfg, rng, all_tasks, evaluate_batch)
-    results_df = run_evaluation(cfg, rng, all_tasks, evaluate_single)
+    results_df = run_evaluation(cfg, rng, all_tasks, evaluate_batch)
 
     # Save results and print summary
     save_results(cfg, results_df)
