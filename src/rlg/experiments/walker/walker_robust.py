@@ -77,7 +77,7 @@ class WalkerRobust(PlanarWalker):
         new_geom_size = self._default_geom_size
 
         def scale_geom(sizes, idx):
-            return sizes.at[idx].set(sizes[idx] * task_params.size_scale)
+            return sizes.at[idx, 1].set(sizes[idx, 1] * task_params.size_scale)
 
         # Apply scaling to all torso geoms
         for geom_id in self._torso_geom_ids:
@@ -197,7 +197,7 @@ class WalkerRobust(PlanarWalker):
                 # geom_id is a JAX array in gen_model, but int here.
                 # Convert if necessary, or ensure _torso_geom_ids is a standard list/array
                 gid = int(geom_id)
-                render_model.geom_size[gid] *= size_scale
+                render_model.geom_size[gid, 1] *= size_scale
 
         # (Optional) Visualize Mass: Tint the torso redder if it's heavier
         # This helps you visually confirm the agent is "heavy"
