@@ -24,7 +24,7 @@ from brax.training.agents.ppo import networks as ppo_networks
 from omegaconf import DictConfig
 from tqdm import trange
 
-from rlg.experiments.walker.walker_robust import WalkerRobust, WalkerTaskParams
+from rlg.experiments.brax.walker_robust import WalkerRobust, WalkerTaskParams
 
 logger = logging.getLogger(__name__)
 
@@ -287,7 +287,7 @@ def run_evaluation(cfg, rng, all_tasks, run_batch_episode_fn):
     num_eps = cfg.eval.num_episodes_per_task
     total_episodes = num_tasks * num_eps
 
-    BATCH_SIZE = 8192
+    batch_size = cfg.batch_size
 
     # Host-side metadata (fine to keep on CPU for output)
     task_indices = np.repeat(np.arange(num_tasks), num_eps)
@@ -297,13 +297,13 @@ def run_evaluation(cfg, rng, all_tasks, run_batch_episode_fn):
     eval_batch_fn = jax.jit(run_batch_episode_fn)
 
     # --- Compilation Warmup ---
-    logger.info(f"Compiling batch evaluation function (batch size={BATCH_SIZE})...")
+    logger.info(f"Compiling batch evaluation function (batch size={batch_size})...")
     start = time.time()
-    dummy_keys = jax.random.split(rng, BATCH_SIZE)
+    dummy_keys = jax.random.split(rng, batch_size)
     dummy_params = WalkerTaskParams(
-        mass_scale=jnp.ones((BATCH_SIZE,)),
-        size_scale=jnp.ones((BATCH_SIZE,)),
-        damping_scale=jnp.ones((BATCH_SIZE,)),
+        mass_scale=jnp.ones((batch_size,)),
+        size_scale=jnp.ones((batch_size,)),
+        damping_scale=jnp.ones((batch_size,)),
     )
     compiled = eval_batch_fn.lower(dummy_keys, dummy_params).compile()
     logger.info(f"Compilation complete in {time.time() - start:.2f} seconds")
@@ -314,9 +314,9 @@ def run_evaluation(cfg, rng, all_tasks, run_batch_episode_fn):
     # Keep results on device until the end
     device_returns = []
 
-    for i in trange(0, total_episodes, BATCH_SIZE):
+    for i in trange(0, total_episodes, batch_size):
         start_idx = i
-        end_idx = min(i + BATCH_SIZE, total_episodes)
+        end_idx = min(i + batch_size, total_episodes)
         actual_batch_size = end_idx - start_idx
 
         # Indices for this chunk (host -> device, small)
@@ -324,8 +324,8 @@ def run_evaluation(cfg, rng, all_tasks, run_batch_episode_fn):
         current_indices = jnp.asarray(current_indices_np, dtype=jnp.int32)
 
         # Pad indices ON DEVICE if last chunk is smaller
-        if actual_batch_size < BATCH_SIZE:
-            pad_len = BATCH_SIZE - actual_batch_size
+        if actual_batch_size < batch_size:
+            pad_len = batch_size - actual_batch_size
             last = current_indices[-1]
             pad = jnp.full((pad_len,), last, dtype=current_indices.dtype)
             current_indices = jnp.concatenate([current_indices, pad], axis=0)
@@ -338,7 +338,7 @@ def run_evaluation(cfg, rng, all_tasks, run_batch_episode_fn):
         )
 
         rng, chunk_key = jax.random.split(rng)
-        chunk_keys = jax.random.split(chunk_key, BATCH_SIZE)
+        chunk_keys = jax.random.split(chunk_key, batch_size)
 
         batch_ret = compiled(chunk_keys, chunk_params)
         device_returns.append(batch_ret)

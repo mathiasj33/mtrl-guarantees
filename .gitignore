@@ -5,8 +5,16 @@ runs/
 *.zip
 ldba.png
 .VSCodeCounter/
-walker_ckp
+*_ckp/
 videos/
+
+# Mujoco playground
+madrona_mjx.csv
+isaac_lab_state.csv
+isaac_lab.csv
+maniskill_state.csv
+maniskill.csv
+**/maniskill3/README.md
 
 # Pixi environments
 .pixi
