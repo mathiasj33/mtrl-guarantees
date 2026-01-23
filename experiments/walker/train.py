@@ -23,7 +23,7 @@ from mujoco_playground._src.wrapper import BraxAutoResetWrapper
 from mujoco_playground.config import dm_control_suite_params
 from omegaconf import DictConfig
 
-from rlg.experiments.walker.brax_multi_task_wrapper import BraxMultiTaskWrapper
+from rlg.experiments.brax.brax_multi_task_wrapper import BraxMultiTaskWrapper
 from rlg.experiments.walker.walker_robust import WalkerRobust, WalkerTaskParams
 
 logger = logging.getLogger(__name__)
