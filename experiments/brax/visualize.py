@@ -1,11 +1,6 @@
-"""Visualization script for the robust Walker environment.
+"""Visualization script for brax environments.
 
 This script loads a trained checkpoint and renders a rollout video.
-
-Usage:
-    python experiments/walker/visualize.py
-    python experiments/walker/visualize.py checkpoint.path=/path/to/checkpoint
-    python experiments/walker/visualize.py task.mass_scale=0.5 task.size_scale=2.0
 """
 
 import logging
@@ -23,63 +18,33 @@ from omegaconf import DictConfig
 from tqdm import trange
 
 from rlg.experiments.brax.cheetah_robust import CheetahRobust, CheetahTaskParams
+from rlg.experiments.brax.utils import find_latest_checkpoint
+from rlg.experiments.brax.walker_robust import WalkerRobust, WalkerTaskParams
 
 logger = logging.getLogger(__name__)
 
 
-def find_latest_checkpoint(base_path: Path) -> Path:
-    """Find the latest checkpoint in the given directory."""
-    checkpoints = [f for f in base_path.glob("*") if f.is_dir()]
-    if not checkpoints:
-        raise ValueError(f"No checkpoints found in {base_path}")
-    return max(checkpoints, key=lambda f: int(f.name))
-
-
-def get_checkpoint_path(cfg: DictConfig) -> Path:
-    """Get the checkpoint path from config or find the latest."""
-    if cfg.checkpoint.path is not None:
-        ckpt_path = Path(cfg.checkpoint.path)
-        if ckpt_path.is_dir():
-            # Check if it's a checkpoint directory (contains numbered subdirs)
-            subdirs = [f for f in ckpt_path.glob("*") if f.is_dir()]
-            if subdirs and all(f.name.isdigit() for f in subdirs):
-                return find_latest_checkpoint(ckpt_path)
-            return ckpt_path
-        raise ValueError(f"Checkpoint path does not exist: {ckpt_path}")
-
-    default_path = Path("runs/cheetah/cheetah_ckp")
-    if not default_path.exists():
-        # Try relative to script location
-        default_path = Path(__file__).parent / "cheetah_ckp"
-    if not default_path.exists():
-        raise ValueError(
-            "No checkpoint path specified and default path not found. "
-            "Use checkpoint.path=/path/to/checkpoint"
-        )
-    return find_latest_checkpoint(default_path)
-
-
-@hydra.main(
-    version_base="1.1", config_path="../../conf", config_name="visualize_cheetah"
-)
+@hydra.main(version_base="1.1", config_path="../../conf", config_name="visualize_brax")
 def main(cfg: DictConfig):
-    """Main visualization function."""
-    logger.info("Starting Cheetah visualization")
+    logger.info(f"Starting {cfg.env.name} visualization")
 
     # Find checkpoint
-    ckpt_path = get_checkpoint_path(cfg)
+    ckpt_path = find_latest_checkpoint(Path(cfg.checkpoint_path))
     logger.info(f"Loading checkpoint from: {ckpt_path}")
 
     # Create environment
-    env = CheetahRobust()
+    env, param_clz = {
+        "cheetah": (CheetahRobust, CheetahTaskParams),
+        "walker": (WalkerRobust, WalkerTaskParams),
+    }[cfg.env.name]()
 
     # Setup task parameters
-    task = CheetahTaskParams(
+    task = param_clz(
         mass_scale=jnp.array(cfg.task.mass_scale),
-        torso_length_scale=jnp.array(cfg.task.length_scale),
+        size_scale=jnp.array(cfg.task.size_scale),
     )
     logger.info(
-        f"Task parameters: mass={cfg.task.mass_scale}, length={cfg.task.length_scale}"
+        f"Task parameters: mass={cfg.task.mass_scale}, size={cfg.task.size_scale}"
     )
 
     # Initialize RNG
@@ -129,6 +94,7 @@ def main(cfg: DictConfig):
     # Render video
     render_every = cfg.render.render_every
     output_path = Path(cfg.render.output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     logger.info(f"Rendering video to: {output_path}")
 
     frames = env.render(task, rollout[::render_every], camera=cfg.render.camera)
