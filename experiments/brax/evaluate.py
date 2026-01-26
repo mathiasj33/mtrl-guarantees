@@ -1,12 +1,7 @@
-"""Efficient evaluation script for the Walker experiment.
+"""Efficient evaluation script for the Brax environments.
 
 This script evaluates a trained policy on many tasks and episodes, storing results
 in parquet format using polars for fast storage and retrieval.
-
-Usage:
-    python experiments/walker/evaluate.py
-    python experiments/walker/evaluate.py eval.num_tasks=1000 eval.num_episodes_per_task=10000
-    python experiments/walker/evaluate.py checkpoint.path=/path/to/checkpoint
 """
 
 import logging
@@ -25,38 +20,9 @@ from omegaconf import DictConfig
 from tqdm import trange
 
 from rlg.experiments.brax.cheetah_robust import CheetahRobust, CheetahTaskParams
+from rlg.experiments.brax.walker_robust import WalkerRobust
 
 logger = logging.getLogger(__name__)
-
-
-def find_latest_checkpoint(base_path: Path) -> Path:
-    """Find the latest checkpoint in the given directory."""
-    checkpoints = [f for f in base_path.glob("*") if f.is_dir()]
-    if not checkpoints:
-        raise ValueError(f"No checkpoints found in {base_path}")
-    return max(checkpoints, key=lambda f: int(f.name))
-
-
-def get_checkpoint_path(cfg: DictConfig) -> Path:
-    """Get the checkpoint path from config or find the latest."""
-    if cfg.checkpoint.path is not None:
-        ckpt_path = Path(cfg.checkpoint.path)
-        logger.info(ckpt_path.absolute())
-        if ckpt_path.is_dir():
-            subdirs = [f for f in ckpt_path.glob("*") if f.is_dir()]
-            if subdirs and all(f.name.isdigit() for f in subdirs):
-                return find_latest_checkpoint(ckpt_path)
-            return ckpt_path
-        raise ValueError(f"Checkpoint path does not exist: {ckpt_path}")
-
-    # Default: look in experiments/walker/walker_ckp
-    default_path = Path(__file__).parent / "cheetah_ckp"
-    if not default_path.exists():
-        raise ValueError(
-            "No checkpoint path specified and default path not found. "
-            "Use checkpoint.path=/path/to/checkpoint"
-        )
-    return find_latest_checkpoint(default_path)
 
 
 def make_task_sampler(cfg: DictConfig):
@@ -93,45 +59,6 @@ def sample_tasks_batch(
     keys = jax.random.split(rng, num_tasks)
     tasks = jax.vmap(task_sampler)(keys)
     return tasks
-
-
-def create_run_single_episode(env: CheetahRobust, inference_fn, episode_length: int):
-    """Creates a vectorized episode evaluation function.
-
-    This function efficiently evaluates multiple episodes in parallel on GPU.
-    """
-
-    def run_single_episode(rng: jax.Array, task_params: CheetahTaskParams) -> jax.Array:
-        """Run a single episode and return total reward.
-
-        Args:
-            rng: Random key for this episode
-            task_params: Task parameters (scalars, not batched)
-
-        Returns:
-            Total reward for the episode
-        """
-        rng, reset_rng = jax.random.split(rng)
-        state = env.reset(reset_rng, task_params=task_params)
-
-        def step_fn(carry, _):
-            state, rng, total_reward = carry
-            rng, act_rng = jax.random.split(rng)
-            action, _ = inference_fn(state.obs, act_rng)
-            next_state = env.step(state, action)
-            # Accumulate reward, masking after done
-            total_reward = total_reward + next_state.reward * (1.0 - state.done)
-            return (next_state, rng, total_reward), None
-
-        (_, _, total_reward), _ = jax.lax.scan(
-            step_fn,
-            (state, rng, jnp.zeros(())),
-            None,
-            length=episode_length,
-        )
-        return total_reward
-
-    return run_single_episode
 
 
 def create_run_batch_episode(
@@ -178,14 +105,22 @@ def create_run_batch_episode(
     return run_batch_episode
 
 
+def find_latest_checkpoint(base_path: Path) -> Path:
+    """Find the latest checkpoint in the given directory."""
+    checkpoints = [f for f in base_path.glob("*") if f.is_dir()]
+    if not checkpoints:
+        raise ValueError(f"No checkpoints found in {base_path}")
+    return max(checkpoints, key=lambda f: int(f.name))
+
+
 def load_policy(cfg: DictConfig, env: CheetahRobust, rng: jax.Array):
     """Load the policy network and checkpoint.
 
     Returns:
         Tuple of (inference_fn, rng) where inference_fn is the JIT-compiled policy.
     """
-    ckpt_path = get_checkpoint_path(cfg)
-    logger.info(f"Loading checkpoint from: {ckpt_path}")
+    ckpt_path = find_latest_checkpoint(Path(cfg.checkpoint_path))
+    logger.info(f"Loading checkpoint from: {ckpt_path.absolute()}")
 
     # Get observation shape by doing a dummy reset
     rng, init_rng = jax.random.split(rng)
@@ -235,8 +170,9 @@ def sample_and_save_tasks(
         }
     )
     tasks_path = Path(cfg.output.dir) / cfg.output.tasks_file
+    tasks_path.parent.mkdir(parents=True, exist_ok=True)
     tasks_df.write_parquet(tasks_path)
-    logger.info(f"Saved task parameters to {tasks_path}")
+    logger.info(f"Saved task parameters to {tasks_path.absolute()}")
 
     return all_tasks, rng
 
@@ -246,7 +182,7 @@ def run_evaluation(cfg, rng, all_tasks, run_batch_episode_fn):
     num_eps = cfg.eval.num_episodes_per_task
     total_episodes = num_tasks * num_eps
 
-    batch_size = cfg.batch_size
+    batch_size = min(cfg.batch_size, total_episodes)
 
     # Host-side metadata (fine to keep on CPU for output)
     task_indices = np.repeat(np.arange(num_tasks), num_eps)
@@ -341,15 +277,14 @@ def save_results(cfg: DictConfig, results_df: pl.DataFrame) -> None:
     )
 
 
-@hydra.main(version_base="1.1", config_path="../../conf", config_name="eval_cheetah")
+@hydra.main(version_base="1.1", config_path="../../conf", config_name="eval_brax")
 def main(cfg: DictConfig):
     """Main evaluation function."""
 
-    logger.info("Starting Cheetah evaluation")
+    logger.info(f"Starting {cfg.env.name} evaluation")
 
     # Create environment
-    env = CheetahRobust()
-    # env = BraxAutoResetWrapper(env)
+    env = {"cheetah": CheetahRobust, "walker": WalkerRobust}[cfg.env.name]()
 
     # Initialize RNG
     rng = jax.random.key(cfg.seed)
