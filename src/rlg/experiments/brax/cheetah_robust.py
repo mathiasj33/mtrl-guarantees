@@ -82,7 +82,7 @@ class CheetahRobust(Run):
             Inertia tensor as [Ixx, Iyy, Izz]
         """
         r2 = radius**2
-        L = 2.0 * half_length  # TODO: fix reset!!!
+        L = 2.0 * half_length
         L2 = L**2
 
         Ixx = 0.5 * mass * r2
