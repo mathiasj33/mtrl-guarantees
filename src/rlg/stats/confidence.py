@@ -144,3 +144,85 @@ def empirical_bernstein(df, min_return, max_return, beta=0.05):
     )
 
     return stats.select(["task_id", "mean_return", "lower_bound"]).sort("task_id")
+
+
+def dkw_mean_lower_bound(df, min_return, max_return, beta=0.05):
+    """
+    Computes a guaranteed lower bound on the mean using the
+    Dvoretzky–Kiefer–Wolfowitz (DKW) inequality.
+
+    This constructs the "worst-case" CDF that fits within the DKW
+    confidence band and computes its mean.
+
+    Args:
+        df: Polars dataframe with task_id, total_return
+        min_return: Minimum possible return (a)
+        max_return: Maximum possible return (b)
+        beta: Significance level (default 0.05)
+    Returns:
+        dataframe with task_id, mean_return, and lower_bound
+    """
+
+    # 1. Verify sample sizes
+    episodes_per_task = df.group_by("task_id").agg(
+        pl.col("total_return").count().alias("n_episodes")
+    )
+    n = episodes_per_task.select(pl.col("n_episodes").first()).item()
+    assert episodes_per_task["n_episodes"].n_unique() == 1, (
+        "All tasks must have the same number of episodes"
+    )
+
+    # 2. Calculate DKW Epsilon
+    # Standard DKW (Massart's tight constant): P(sup|Fn - F| > eps) <= 2exp(-2n*eps^2)
+    # We construct a one-sided bound, so we use:
+    # eps = sqrt( ln(1/gamma) / (2n) )
+    epsilon = np.sqrt(np.log(1 / beta) / (2 * n))
+
+    # 3. Sort data to compute the Empirical CDF
+    # We need to process the "gaps" between sorted returns to integrate the mean.
+    sorted_df = df.sort(["task_id", "total_return"])
+
+    # 4. Compute the Worst-Case Mean Integral
+    # Formula: Mean = min_return + Integral_of_(1 - F_upper(x)) dx
+    # We sum the areas of rectangles defined by the sorted samples.
+
+    dkw_stats = sorted_df.with_columns(
+        [
+            # Calculate the gap between current sample and previous sample
+            # For the first sample, the "previous" is min_return.
+            (
+                pl.col("total_return")
+                - pl.col("total_return").shift(1).over("task_id").fill_null(min_return)
+            ).alias("interval_width"),
+            # Calculate the Empirical CDF value *before* this sample
+            # (i.e., 0 for the first gap, 1/n for the second, etc.)
+            ((pl.col("total_return").cum_count().over("task_id") - 1) / n).alias(
+                "ecdf_prev"
+            ),
+        ]
+    )
+
+    # Construct the Upper Bound of the CDF (The "Worst Case" curve)
+    # The true CDF cannot be higher than Empirical_CDF + Epsilon
+    dkw_stats = dkw_stats.with_columns(
+        pl.min_horizontal(1.0, pl.col("ecdf_prev") + epsilon).alias("cdf_upper_bound")
+    )
+
+    # Integrate: Sum of width * probability_mass_above_curve
+    # The probability mass contributing to the mean is (1 - CDF)
+    dkw_stats = dkw_stats.with_columns(
+        (pl.col("interval_width") * (1.0 - pl.col("cdf_upper_bound"))).alias(
+            "mean_contribution"
+        )
+    )
+
+    # 5. Aggregate
+    result = dkw_stats.group_by("task_id").agg(
+        [
+            pl.col("total_return").mean().alias("mean_return"),
+            # The integration starts at min_return, so we add it as the base
+            (pl.col("mean_contribution").sum() + min_return).alias("lower_bound"),
+        ]
+    )
+
+    return result.sort("task_id")

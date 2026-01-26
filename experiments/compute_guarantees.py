@@ -12,7 +12,12 @@ import polars as pl
 from omegaconf import DictConfig
 
 from rlg.bounds.expected_performance import compute_guarantees
-from rlg.stats.confidence import clopper_pearson, empirical_bernstein, hoeffding
+from rlg.stats.confidence import (
+    clopper_pearson,
+    dkw_mean_lower_bound,
+    empirical_bernstein,
+    hoeffding,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +111,7 @@ def get_bound_function(name: str):
     name_to_function = {
         "hoeffding": hoeffding,
         "bernstein": empirical_bernstein,
+        "dkw": dkw_mean_lower_bound,
         "clopper-pearson": clopper_pearson,
     }
     if name not in name_to_function:
