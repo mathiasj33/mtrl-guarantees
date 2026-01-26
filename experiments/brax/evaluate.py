@@ -20,6 +20,7 @@ from omegaconf import DictConfig
 from tqdm import trange
 
 from rlg.experiments.brax.cheetah_robust import CheetahRobust, CheetahTaskParams
+from rlg.experiments.brax.utils import find_latest_checkpoint
 from rlg.experiments.brax.walker_robust import WalkerRobust
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ def make_task_sampler(cfg: DictConfig):
 
         return CheetahTaskParams(
             mass_scale=taus[0],
-            torso_length_scale=taus[1],
+            size_scale=taus[1],
         )
 
     return sample_task
@@ -105,14 +106,6 @@ def create_run_batch_episode(
     return run_batch_episode
 
 
-def find_latest_checkpoint(base_path: Path) -> Path:
-    """Find the latest checkpoint in the given directory."""
-    checkpoints = [f for f in base_path.glob("*") if f.is_dir()]
-    if not checkpoints:
-        raise ValueError(f"No checkpoints found in {base_path}")
-    return max(checkpoints, key=lambda f: int(f.name))
-
-
 def load_policy(cfg: DictConfig, env: CheetahRobust, rng: jax.Array):
     """Load the policy network and checkpoint.
 
@@ -126,7 +119,7 @@ def load_policy(cfg: DictConfig, env: CheetahRobust, rng: jax.Array):
     rng, init_rng = jax.random.split(rng)
     dummy_task = CheetahTaskParams(
         mass_scale=jnp.array(1.0),
-        torso_length_scale=jnp.array(1.0),
+        size_scale=jnp.array(1.0),
     )
     dummy_state = env.reset(init_rng, task_params=dummy_task)
     obs_shape = dummy_state.obs.shape  # type: ignore
@@ -197,7 +190,7 @@ def run_evaluation(cfg, rng, all_tasks, run_batch_episode_fn):
     dummy_keys = jax.random.split(rng, batch_size)
     dummy_params = CheetahTaskParams(
         mass_scale=jnp.ones((batch_size,)),
-        torso_length_scale=jnp.ones((batch_size,)),
+        size_scale=jnp.ones((batch_size,)),
     )
     compiled = eval_batch_fn.lower(dummy_keys, dummy_params).compile()
     logger.info(f"Compilation complete in {time.time() - start:.2f} seconds")
@@ -227,7 +220,7 @@ def run_evaluation(cfg, rng, all_tasks, run_batch_episode_fn):
         # Gather task params ON DEVICE
         chunk_params = CheetahTaskParams(
             mass_scale=jnp.take(all_tasks.mass_scale, current_indices),
-            torso_length_scale=jnp.take(all_tasks.torso_length_scale, current_indices),
+            size_scale=jnp.take(all_tasks.torso_length_scale, current_indices),
         )
 
         rng, chunk_key = jax.random.split(rng)
