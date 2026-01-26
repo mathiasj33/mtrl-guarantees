@@ -34,8 +34,8 @@ def main(cfg: DictConfig):
     )
     guarantees, probs = compute_guarantees(
         lower_bounds=lower_bounds.tolist(),
-        delta=cfg.bounds.gamma,
-        eps=cfg.bounds.eta,
+        beta=cfg.bounds.beta,
+        delta=cfg.bounds.delta,
         step_size=cfg.bounds.step_size,
         n_jobs=cfg.bounds.n_jobs,
     )
