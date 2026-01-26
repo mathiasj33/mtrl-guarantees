@@ -9,8 +9,8 @@ from scipy.stats import binom
 
 def compute_guarantees(
     lower_bounds: list[float],
-    gamma: float,
-    eta: float,
+    delta: float,
+    eps: float,
     step_size: int = 5,
     n_jobs: int = 8,
 ) -> tuple[list[float], list[float]]:
@@ -36,19 +36,19 @@ def compute_guarantees(
     k_values.append(max_k)
 
     probs = Parallel(n_jobs=n_jobs, verbose=10)(
-        delayed(compute_optimal_prob_with_discard)(len(lower_bounds), k, gamma, eta)
+        delayed(compute_optimal_prob_with_discard)(len(lower_bounds), k, delta, eps)
         for k in k_values
     )
     probs = cast(list[float], probs)
     guarantees = [lower_bounds[k] for k in k_values]
-    best_guarantee = guarantees[-1]
-    guarantees += [best_guarantee, 1.0]  # extend the line to (1.0, 0.0)
-    probs += [0.0, 0.0]
+    # best_guarantee = guarantees[-1]
+    # guarantees += [best_guarantee, 1.0]  # extend the line to (1.0, 0.0)
+    # probs += [0.0, 0.0]
     return guarantees, probs
 
 
 def compute_optimal_prob_with_discard(
-    n: int, max_discard: int, gamma: float, eta: float
+    n: int, max_discard: int, delta: float, eps: float
 ) -> float:
     """
     Computes the optimal success probability (1-epsilon) with discarded samples.
@@ -65,11 +65,11 @@ def compute_optimal_prob_with_discard(
     min_epsilon = 1
 
     for k in range(max(1, int((n - max_discard) * 0.7)), n + 1 - max_discard):
-        p = 1 - binom.cdf(k, n - max_discard, 1 - gamma)
-        if p < 1 - eta:
+        p = 1 - binom.cdf(k, n - max_discard, 1 - delta)
+        if p < 1 - eps:
             continue
 
-        beta = p - (1 - eta)
+        beta = p - (1 - eps)
         epsilon = bisect(binom_cdf_diff, 0, 1, args=(n, n - k, beta))
 
         min_epsilon = min(min_epsilon, epsilon)

@@ -26,7 +26,12 @@ def main(cfg: DictConfig):
     guarantees = pd.read_csv("guarantees.csv")
     actual_guarantees = pd.read_csv("actual_guarantees.csv")
     sns.lineplot(
-        guarantees, x="probs", y="guarantees", ax=axes[1], label="Computed Guarantees"
+        guarantees,
+        x="probs",
+        y="guarantees",
+        ax=axes[1],
+        label="Computed Guarantees",
+        drawstyle="steps-pre",
     )
     sns.lineplot(
         actual_guarantees,

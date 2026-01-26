@@ -15,3 +15,8 @@ job_logging:
       class: logging.FileHandler
       formatter: simple
       mode: w
+  loggers:
+    orbax:
+      level: WARNING
+    absl:
+      level: WARNING

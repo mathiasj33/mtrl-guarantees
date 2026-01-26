@@ -26,7 +26,7 @@ batch_size: 8192 # Number of episodes to evaluate in parallel
 
 # Output settings
 output:
-  dir: ../${env.name}/eval
+  dir: ../${env.name}/eval/${run}
   results_file: episode_returns.parquet
   tasks_file: task_params.parquet
 

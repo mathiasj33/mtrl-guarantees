@@ -1,0 +1,17 @@
+defaults:
+  - hydra: experiment
+  - _self_
+
+name: plot
+run: main
+
+env:
+  name: cheetah
+
+results:
+  dir: ../${env.name}/eval/${run}
+
+plot:
+  bounds: [bernstein, hoeffding]
+  num_tasks: [100, 500]
+  num_episodes: [500, 2000]
