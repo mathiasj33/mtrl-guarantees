@@ -2,10 +2,10 @@
 
 import numpy as np
 import polars as pl
-from scipy.stats import beta
+from scipy import stats
 
 
-def clopper_pearson(k, n, delta=0.05):
+def clopper_pearson(k, n, beta=0.05):
     """
     Computes Clopper-Pearson confidence intervals for binomial success.
 
@@ -25,12 +25,12 @@ def clopper_pearson(k, n, delta=0.05):
     # Use beta.ppf(alpha, k, n - k + 1)
     # The ppf (Percent Point Function) is the inverse of the CDF.
     # We use np.nan_to_num to handle the edge case k=0, which returns NaN
-    lower = beta.ppf(delta, k, n - k + 1)
+    lower = stats.beta.ppf(beta, k, n - k + 1)
     lower = np.nan_to_num(lower, nan=0.0)
     return lower
 
 
-def hoeffding(df, min_return, max_return, delta=0.05):
+def hoeffding(df, min_return, max_return, beta=0.05):
     """
     Computes Hoeffding confidence intervals for real-valued returns.
 
@@ -58,7 +58,7 @@ def hoeffding(df, min_return, max_return, delta=0.05):
 
     # Hoeffding lower bound calculation
     hoeffding_bound = (max_return - min_return) * np.sqrt(
-        (np.log(1 / delta)) / (2 * n_episodes)
+        (np.log(1 / beta)) / (2 * n_episodes)
     )
 
     # Compute lower bounds
@@ -71,7 +71,7 @@ def hoeffding(df, min_return, max_return, delta=0.05):
     )
 
 
-def empirical_bernstein(df, min_return, max_return, delta=0.05):
+def empirical_bernstein(df, min_return, max_return, beta=0.05):
     """
     Computes Empirical Bernstein lower bounds for real-valued returns.
 
@@ -126,7 +126,7 @@ def empirical_bernstein(df, min_return, max_return, delta=0.05):
     # Formula: sqrt(2 * Var * ln(2/d) / n) + 7 * ln(2/d) / (3 * (n - 1))
     # Note: We use ln(2/gamma) because the empirical bound requires a union bound
     # (cost of estimating both mean and variance).
-    log_term = np.log(2 / delta)
+    log_term = np.log(2 / beta)
 
     stats = stats.with_columns(
         (

@@ -48,13 +48,13 @@ def main(cfg: DictConfig):
             df,
             min_return=cfg.guarantees.min_return,
             max_return=cfg.guarantees.max_return,
-            delta=cfg.guarantees.delta,
+            beta=cfg.guarantees.beta,
         )
 
         guarantees, probs = compute_guarantees(
             lower_bounds=bounds["lower_bound"].to_list(),
+            beta=cfg.guarantees.beta,
             delta=cfg.guarantees.delta,
-            eps=cfg.guarantees.eps,
             step_size=cfg.guarantees.step_size,
             n_jobs=cfg.n_jobs,
         )
@@ -71,19 +71,23 @@ def main(cfg: DictConfig):
                 "prob": probs,
                 "num_tasks": num_tasks,
                 "num_episodes": num_episodes,
-                "method": cfg.guarantees.bound,
+                "bound": cfg.guarantees.bound,
+                "beta": cfg.guarantees.beta,
                 "delta": cfg.guarantees.delta,
-                "eps": cfg.guarantees.eps,
             }
         )
         all_guarantees.append(g_df)
 
     # Save all results
     guarantees_df = pd.concat(all_guarantees, ignore_index=True)
-    guarantees_df.drop_duplicates(inplace=True)
     guarantees_file = Path(cfg.results.dir) / "guarantees.csv"
     if guarantees_file.exists():
         existing_df = pd.read_csv(guarantees_file)
+        # Remove existing rows that match the new data's key columns
+        key_cols = ["num_tasks", "num_episodes", "bound", "beta", "delta"]
+        new_keys = guarantees_df[key_cols].drop_duplicates()
+        merged = existing_df.merge(new_keys, on=key_cols, how="left", indicator=True)
+        existing_df = existing_df[merged["_merge"] == "left_only"]
         guarantees_df = pd.concat([existing_df, guarantees_df], ignore_index=True)
     guarantees_df.to_csv(guarantees_file, index=False)
     logger.info(f"Saved computed bounds to {guarantees_file.resolve()}")
