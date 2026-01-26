@@ -5,7 +5,12 @@ import jax
 from mujoco_playground._src.wrapper import Wrapper
 
 
-class BraxMultiTaskWrapper[TaskParams: NamedTuple](Wrapper):
+class TaskParams(NamedTuple):
+    mass_scale: jax.Array  # float
+    length_scale: jax.Array  # float
+
+
+class BraxMultiTaskWrapper(Wrapper):
     """Samples a random task for each episode."""
 
     def __init__(self, env, task_sampler: Callable[[jax.Array], TaskParams]):

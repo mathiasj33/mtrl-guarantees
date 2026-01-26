@@ -17,9 +17,8 @@ from brax.training.agents.ppo import networks as ppo_networks
 from omegaconf import DictConfig
 from tqdm import trange
 
-from rlg.experiments.brax.cheetah_robust import CheetahRobust, CheetahTaskParams
-from rlg.experiments.brax.utils import find_latest_checkpoint
-from rlg.experiments.brax.walker_robust import WalkerRobust, WalkerTaskParams
+from rlg.experiments.brax.brax_multi_task_wrapper import TaskParams
+from rlg.experiments.brax.utils import find_latest_checkpoint, load_env
 
 logger = logging.getLogger(__name__)
 
@@ -33,18 +32,15 @@ def main(cfg: DictConfig):
     logger.info(f"Loading checkpoint from: {ckpt_path}")
 
     # Create environment
-    env, param_clz = {
-        "cheetah": (CheetahRobust, CheetahTaskParams),
-        "walker": (WalkerRobust, WalkerTaskParams),
-    }[cfg.env.name]()
+    env = load_env(cfg.env.name)
 
     # Setup task parameters
-    task = param_clz(
+    task = TaskParams(
         mass_scale=jnp.array(cfg.task.mass_scale),
-        size_scale=jnp.array(cfg.task.size_scale),
+        length_scale=jnp.array(cfg.task.length_scale),
     )
     logger.info(
-        f"Task parameters: mass={cfg.task.mass_scale}, size={cfg.task.size_scale}"
+        f"Task parameters: mass={cfg.task.mass_scale}, length={cfg.task.length_scale}"
     )
 
     # Initialize RNG

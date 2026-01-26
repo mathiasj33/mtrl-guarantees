@@ -3,12 +3,13 @@ defaults:
   - _self_
 
 name: visualize
+run: main
 
 env:
   name: cheetah # cheetah or walker
   episode_length: 1000
 
-checkpoint_path: ../${env.name}/checkpoint
+checkpoint_path: ../${env.name}/checkpoints/${run.name}
 
 # Task parameters for visualization
 task:

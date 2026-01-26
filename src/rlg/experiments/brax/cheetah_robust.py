@@ -1,5 +1,4 @@
 import copy
-from typing import NamedTuple
 
 import jax
 import jax.numpy as jp
@@ -10,10 +9,7 @@ from mujoco_playground._src import mjx_env
 from mujoco_playground._src.dm_control_suite.cheetah import Run
 from mujoco_playground._src.mjx_env import render_array
 
-
-class CheetahTaskParams(NamedTuple):
-    mass_scale: jax.Array  # float
-    size_scale: jax.Array  # float
+from rlg.experiments.brax.brax_multi_task_wrapper import TaskParams
 
 
 class CheetahRobust(Run):
@@ -91,7 +87,7 @@ class CheetahRobust(Run):
 
         return jp.array([Ixx, Iyy, Izz])
 
-    def _gen_model(self, task_params: CheetahTaskParams) -> mjx.Model:
+    def _gen_model(self, task_params: TaskParams) -> mjx.Model:
         """Generates a new MJX model with scaled physics parameters.
 
         Args:
@@ -110,7 +106,7 @@ class CheetahRobust(Run):
         #   - size[1] = half-length (computed from fromto endpoints)
         # The original torso has fromto="-.5 0 0 .5 0 0", so half-length = 0.5
         new_geom_size = self._default_geom_size
-        new_torso_half_length = self._torso_half_length * task_params.size_scale
+        new_torso_half_length = self._torso_half_length * task_params.length_scale
         new_geom_size = new_geom_size.at[self._torso_geom_id, 1].set(
             new_torso_half_length
         )
@@ -127,7 +123,7 @@ class CheetahRobust(Run):
         # Original head pos is (0.6, 0, 0.1) in the torso body frame
         new_geom_pos = self._default_geom_pos
         head_pos = self._default_geom_pos[self._head_geom_id]
-        new_head_x = head_pos[0] * task_params.size_scale
+        new_head_x = head_pos[0] * task_params.length_scale
         new_geom_pos = new_geom_pos.at[self._head_geom_id, 0].set(new_head_x)
 
         # 6. Scale the leg body positions to match the new torso endpoints
@@ -137,10 +133,10 @@ class CheetahRobust(Run):
         bthigh_pos = self._default_body_pos[self._bthigh_body_id]
         fthigh_pos = self._default_body_pos[self._fthigh_body_id]
         new_body_pos = new_body_pos.at[self._bthigh_body_id, 0].set(
-            bthigh_pos[0] * task_params.size_scale
+            bthigh_pos[0] * task_params.length_scale
         )
         new_body_pos = new_body_pos.at[self._fthigh_body_id, 0].set(
-            fthigh_pos[0] * task_params.size_scale
+            fthigh_pos[0] * task_params.length_scale
         )
 
         # Return the new model with replaced parameters
@@ -152,7 +148,7 @@ class CheetahRobust(Run):
             body_pos=new_body_pos,
         )
 
-    def reset(self, rng: jax.Array, task_params: CheetahTaskParams) -> mjx_env.State:
+    def reset(self, rng: jax.Array, task_params: TaskParams) -> mjx_env.State:
         """Resets the environment using the specified task model."""
         rng, rng1 = jax.random.split(rng, 2)
 
@@ -203,14 +199,14 @@ class CheetahRobust(Run):
         done = done.astype(float)
         return mjx_env.State(data, obs, reward, done, state.metrics, state.info)
 
-    def _augment_obs_with_task(self, obs, task_params: CheetahTaskParams):
+    def _augment_obs_with_task(self, obs, task_params: TaskParams):
         """Augment observation with log-scaled task parameters."""
-        task_array = jp.array([task_params.mass_scale, task_params.size_scale])
+        task_array = jp.array([task_params.mass_scale, task_params.length_scale])
         return jp.concatenate([obs, jp.log(task_array)], axis=-1)
 
     def render(
         self,
-        task_params: CheetahTaskParams,
+        task_params: TaskParams,
         trajectory,
         height: int = 240,
         width: int = 320,
@@ -237,7 +233,7 @@ class CheetahRobust(Run):
 
         # Convert JAX array to numpy for MuJoCo C-structs
         mass_scale = float(task_params.mass_scale)
-        torso_length_scale = float(task_params.size_scale)
+        torso_length_scale = float(task_params.length_scale)
 
         # Apply torso length scaling
         if torso_length_scale != 1.0:

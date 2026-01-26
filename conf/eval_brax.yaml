@@ -3,6 +3,7 @@ defaults:
   - _self_
 
 name: eval
+run: main
 
 env:
   name: cheetah # cheetah or walker
@@ -13,7 +14,7 @@ task_sampling:
   log_tau_max: 1.0
 
 # Checkpoint settings, defaults to runs/env_name/checkpoint
-checkpoint_path: ../${env.name}/checkpoint
+checkpoint_path: ../${env.name}/checkpoints/${run.name}
 
 # Evaluation settings
 eval:

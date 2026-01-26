@@ -6,6 +6,7 @@ in parquet format using polars for fast storage and retrieval.
 
 import logging
 import time
+from functools import partial
 from pathlib import Path
 
 import hydra
@@ -19,8 +20,9 @@ from brax.training.agents.ppo import networks as ppo_networks
 from omegaconf import DictConfig
 from tqdm import trange
 
-from rlg.experiments.brax.cheetah_robust import CheetahRobust, CheetahTaskParams
-from rlg.experiments.brax.utils import find_latest_checkpoint
+from rlg.experiments.brax.brax_multi_task_wrapper import TaskParams
+from rlg.experiments.brax.cheetah_robust import CheetahRobust
+from rlg.experiments.brax.utils import find_latest_checkpoint, load_env, sample_task
 from rlg.experiments.brax.walker_robust import WalkerRobust
 
 logger = logging.getLogger(__name__)
@@ -34,28 +36,14 @@ def make_task_sampler(cfg: DictConfig):
     log_tau_min = cfg.task_sampling.log_tau_min
     log_tau_max = cfg.task_sampling.log_tau_max
 
-    def sample_task(rng: jax.Array) -> CheetahTaskParams:
-        """Samples task parameters from the RoML distribution."""
-        log_taus = jax.random.uniform(
-            rng, shape=(2,), minval=log_tau_min, maxval=log_tau_max
-        )
-        taus = 2.0**log_taus
-
-        return CheetahTaskParams(
-            mass_scale=taus[0],
-            size_scale=taus[1],
-        )
-
-    return sample_task
+    return partial(sample_task, log_tau_min=log_tau_min, log_tau_max=log_tau_max)
 
 
-def sample_tasks_batch(
-    rng: jax.Array, num_tasks: int, task_sampler
-) -> CheetahTaskParams:
+def sample_tasks_batch(rng: jax.Array, num_tasks: int, task_sampler) -> TaskParams:
     """Sample a batch of tasks.
 
     Returns:
-        CheetahTaskParams with arrays of shape (num_tasks,) for each parameter.
+        NamedTuple with arrays of shape (num_tasks,) for each parameter.
     """
     keys = jax.random.split(rng, num_tasks)
     tasks = jax.vmap(task_sampler)(keys)
@@ -63,14 +51,14 @@ def sample_tasks_batch(
 
 
 def create_run_batch_episode(
-    env: CheetahRobust,
+    env: CheetahRobust | WalkerRobust,
     inference_fn,
     episode_length: int,
 ):
     """Batched episode evaluation."""
 
     def run_batch_episode(
-        rng_batch: jax.Array, task_params_batch: CheetahTaskParams
+        rng_batch: jax.Array, task_params_batch: TaskParams
     ) -> jax.Array:
         batch_size = rng_batch.shape[0]
 
@@ -106,7 +94,7 @@ def create_run_batch_episode(
     return run_batch_episode
 
 
-def load_policy(cfg: DictConfig, env: CheetahRobust, rng: jax.Array):
+def load_policy(cfg: DictConfig, env: CheetahRobust | WalkerRobust, rng: jax.Array):
     """Load the policy network and checkpoint.
 
     Returns:
@@ -117,11 +105,8 @@ def load_policy(cfg: DictConfig, env: CheetahRobust, rng: jax.Array):
 
     # Get observation shape by doing a dummy reset
     rng, init_rng = jax.random.split(rng)
-    dummy_task = CheetahTaskParams(
-        mass_scale=jnp.array(1.0),
-        size_scale=jnp.array(1.0),
-    )
-    dummy_state = env.reset(init_rng, task_params=dummy_task)
+    dummy_task = TaskParams(mass_scale=jnp.array(1.0), length_scale=jnp.array(1.0))
+    dummy_state = env.reset(init_rng, task_params=dummy_task)  # type: ignore
     obs_shape = dummy_state.obs.shape  # type: ignore
 
     # Create policy network
@@ -141,7 +126,7 @@ def load_policy(cfg: DictConfig, env: CheetahRobust, rng: jax.Array):
 
 def sample_and_save_tasks(
     cfg: DictConfig, rng: jax.Array, task_sampler
-) -> tuple[CheetahTaskParams, jax.Array]:
+) -> tuple[TaskParams, jax.Array]:
     """Sample tasks and save their parameters to disk.
 
     Returns:
@@ -188,9 +173,8 @@ def run_evaluation(cfg, rng, all_tasks, run_batch_episode_fn):
     logger.info(f"Compiling batch evaluation function (batch size={batch_size})...")
     start = time.time()
     dummy_keys = jax.random.split(rng, batch_size)
-    dummy_params = CheetahTaskParams(
-        mass_scale=jnp.ones((batch_size,)),
-        size_scale=jnp.ones((batch_size,)),
+    dummy_params = TaskParams(
+        mass_scale=jnp.ones((batch_size,)), length_scale=jnp.ones((batch_size,))
     )
     compiled = eval_batch_fn.lower(dummy_keys, dummy_params).compile()
     logger.info(f"Compilation complete in {time.time() - start:.2f} seconds")
@@ -218,9 +202,9 @@ def run_evaluation(cfg, rng, all_tasks, run_batch_episode_fn):
             current_indices = jnp.concatenate([current_indices, pad], axis=0)
 
         # Gather task params ON DEVICE
-        chunk_params = CheetahTaskParams(
+        chunk_params = TaskParams(
             mass_scale=jnp.take(all_tasks.mass_scale, current_indices),
-            size_scale=jnp.take(all_tasks.torso_length_scale, current_indices),
+            length_scale=jnp.take(all_tasks.length_scale, current_indices),
         )
 
         rng, chunk_key = jax.random.split(rng)
@@ -277,7 +261,7 @@ def main(cfg: DictConfig):
     logger.info(f"Starting {cfg.env.name} evaluation")
 
     # Create environment
-    env = {"cheetah": CheetahRobust, "walker": WalkerRobust}[cfg.env.name]()
+    env = load_env(cfg.env.name)
 
     # Initialize RNG
     rng = jax.random.key(cfg.seed)

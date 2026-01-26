@@ -1,5 +1,4 @@
 import copy
-from typing import NamedTuple
 
 import jax
 import jax.numpy as jp
@@ -10,10 +9,7 @@ from mujoco_playground._src import mjx_env
 from mujoco_playground._src.dm_control_suite.walker import PlanarWalker
 from mujoco_playground._src.mjx_env import render_array
 
-
-class WalkerTaskParams(NamedTuple):
-    mass_scale: jax.Array  # float
-    size_scale: jax.Array  # float
+from rlg.experiments.brax.brax_multi_task_wrapper import TaskParams
 
 
 class WalkerRobust(PlanarWalker):
@@ -53,7 +49,7 @@ class WalkerRobust(PlanarWalker):
         ]
         self._torso_geom_ids = jp.array(self._torso_geom_ids)
 
-    def _gen_model(self, task_params: WalkerTaskParams) -> mjx.Model:
+    def _gen_model(self, task_params: TaskParams) -> mjx.Model:
         """Generates a new MJX model with scaled physics parameters.
 
         Args:
@@ -71,7 +67,7 @@ class WalkerRobust(PlanarWalker):
         new_geom_size = self._default_geom_size
 
         def scale_geom(sizes, idx):
-            return sizes.at[idx, 1].set(sizes[idx, 1] * task_params.size_scale)
+            return sizes.at[idx, 1].set(sizes[idx, 1] * task_params.length_scale)
 
         # Apply scaling to all torso geoms
         for geom_id in self._torso_geom_ids:
@@ -86,7 +82,7 @@ class WalkerRobust(PlanarWalker):
             geom_size=new_geom_size,
         )
 
-    def reset(self, rng: jax.Array, task_params: WalkerTaskParams) -> mjx_env.State:
+    def reset(self, rng: jax.Array, task_params: TaskParams) -> mjx_env.State:
         """Resets the environment using the specified task model."""
         # Standard reset logic...
         rng, rng1, rng2 = jax.random.split(rng, 3)
@@ -148,13 +144,13 @@ class WalkerRobust(PlanarWalker):
         done = done.astype(float)
         return mjx_env.State(data, obs, reward, done, state.metrics, state.info)
 
-    def _augment_obs_with_task(self, obs, task_params: WalkerTaskParams):
-        task_array = jp.array([task_params.mass_scale, task_params.size_scale])
+    def _augment_obs_with_task(self, obs, task_params: TaskParams):
+        task_array = jp.array([task_params.mass_scale, task_params.length_scale])
         return jp.concatenate([obs, jp.log(task_array)], axis=-1)
 
     def render(
         self,
-        task_params: WalkerTaskParams,
+        task_params: TaskParams,
         trajectory,
         height: int = 240,
         width: int = 320,
@@ -168,7 +164,7 @@ class WalkerRobust(PlanarWalker):
 
         # 3. Apply the visual changes to the CPU model
         # Convert JAX array to numpy for MuJoCo C-structs
-        params = np.array([task_params.mass_scale, task_params.size_scale])
+        params = np.array([task_params.mass_scale, task_params.length_scale])
         mass_scale, size_scale = params
 
         # Apply Geometry Scaling (Mirroring gen_model logic)
