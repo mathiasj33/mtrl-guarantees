@@ -28,7 +28,8 @@ def main(cfg: DictConfig):
     logger.info(f"Starting {cfg.env.name} visualization")
 
     # Find checkpoint
-    ckpt_path = find_latest_checkpoint(Path(cfg.checkpoint_path))
+    checkpoint_path = Path(cfg.checkpoint_path).resolve()
+    ckpt_path = find_latest_checkpoint(checkpoint_path)
     logger.info(f"Loading checkpoint from: {ckpt_path}")
 
     # Create environment

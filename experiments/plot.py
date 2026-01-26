@@ -18,13 +18,13 @@ def main(cfg: DictConfig):
         lambda row: f"{row['num_tasks']}/{row['num_episodes']}", axis=1
     )
     guarantees = guarantees.query(
-        "method in @cfg.plot.bounds and num_tasks in @cfg.plot.num_tasks and num_episodes in @cfg.plot.num_episodes"
+        "bound in @cfg.plot.bounds and num_tasks in @cfg.plot.num_tasks and num_episodes in @cfg.plot.num_episodes"
     )
     ax = sns.lineplot(
         guarantees,
         x="guarantee",
         y="prob",
-        hue="method",
+        hue="bound",
         style="tasks/episodes",
         errorbar=None,
         estimator=None,
