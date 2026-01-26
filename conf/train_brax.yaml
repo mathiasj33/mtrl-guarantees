@@ -1,0 +1,26 @@
+defaults:
+  - hydra: experiment
+  - _self_
+
+name: train
+run: tmp # run name, used for storing model checkpoints
+
+env:
+  name: cheetah # cheetah or walker
+  episode_length: 1000
+
+# Task sampling settings (log-uniform distribution)
+task_sampling:
+  log_tau_min: -1.0
+  log_tau_max: 1.0
+
+# Checkpoint settings, defaults to runs/env_name/checkpoint
+checkpoint_path: ../${env.name}/checkpoints/${run}
+
+# Eval settings for evaluation during training
+eval:
+  num_episodes: 10
+  deterministic: true
+
+# Random seed
+seed: 0

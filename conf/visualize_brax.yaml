@@ -9,7 +9,7 @@ env:
   name: cheetah # cheetah or walker
   episode_length: 1000
 
-checkpoint_path: ../${env.name}/checkpoints/${run.name}
+checkpoint_path: ../${env.name}/checkpoints/${run}
 
 # Task parameters for visualization
 task:
