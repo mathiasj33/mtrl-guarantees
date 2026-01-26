@@ -11,7 +11,7 @@ from omegaconf import DictConfig
 from rlg.environments.bridge_world.bridge_world import BridgeWorld
 
 
-@hydra.main(version_base="1.1", config_path="../conf", config_name="visualize")
+@hydra.main(version_base="1.1", config_path="../conf", config_name="visualize_bridge")
 def main(cfg: DictConfig):
     match cfg.env.name:
         case "BridgeWorld":

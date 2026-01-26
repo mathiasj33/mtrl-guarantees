@@ -10,39 +10,51 @@ from rlg.environments.bridge_world.bridge_world import EnvState
 
 
 class BridgeWorldRenderer(DiscreteTimeRenderer):
-    """Renderer for the BridgeWorld environment."""
+    """Renderer for the BridgeWorld environment with two bridges."""
 
     def __init__(
         self,
         title: str,
         screen_size: int = 800,
-        grid_size: int = 21,
+        grid_width: int = 10,
+        grid_height: int = 8,
+        bridge_length: int = 4,
         bridge_width: int = 3,
-        bridge_start_row: int = 5,
-        bridge_end_row: int = 15,
+        left_bridge_col: int = 2,
+        right_bridge_col: int = 7,
+        bridge_start_row: int = 2,
     ):
         super().__init__(title=title, screen_size=screen_size)
-        self.grid_size = grid_size
+        self.grid_width = grid_width
+        self.grid_height = grid_height
+        self.bridge_length = bridge_length
         self.bridge_width = bridge_width
+        self.left_bridge_col = left_bridge_col
+        self.right_bridge_col = right_bridge_col
         self.bridge_start_row = bridge_start_row
-        self.bridge_end_row = bridge_end_row
-        self.cell_size = screen_size // self.grid_size
+        self.bridge_end_row = bridge_start_row + bridge_length - 1
+        self.half_width = bridge_width // 2
 
-        self._screen_size = self.grid_size * self.cell_size
-        if self._screen.get_size() != (self._screen_size, self._screen_size):
+        # Calculate cell size to fit the grid
+        self.cell_size = min(screen_size // grid_width, screen_size // grid_height)
+        self._screen_width = self.grid_width * self.cell_size
+        self._screen_height = self.grid_height * self.cell_size
+
+        if self._screen.get_size() != (self._screen_width, self._screen_height):
             self._screen = pygame.display.set_mode(
-                (self._screen_size, self._screen_size)
+                (self._screen_width, self._screen_height)
             )
 
         # Colors
         self.bg_color = (240, 240, 240)
         self.abyss_color = (64, 64, 64)
-        self.bridge_color = (173, 216, 230)  # lightblue
-        self.agent_color = (0, 128, 0)  # Green
+        self.left_bridge_color = (173, 216, 230)  # lightblue
+        self.right_bridge_color = (144, 238, 144)  # lightgreen
+        self.agent_color = (255, 165, 0)  # Orange
         self.goal_color = (128, 0, 128)  # Purple
         self.border_color = (0, 0, 0)
 
-        self._canvas = pygame.Surface((self._screen_size, self._screen_size))
+        self._canvas = pygame.Surface((self._screen_width, self._screen_height))
 
     @override
     def render(
@@ -56,13 +68,8 @@ class BridgeWorldRenderer(DiscreteTimeRenderer):
 
         self._canvas.fill(self.bg_color)
 
-        bridge_center = self.grid_size // 2
-        bridge_half_width = self.bridge_width // 2
-        bridge_start_col = bridge_center - bridge_half_width
-        bridge_end_col = bridge_center + bridge_half_width
-
-        for r in range(self.grid_size):
-            for c in range(self.grid_size):
+        for r in range(self.grid_height):
+            for c in range(self.grid_width):
                 rect = pygame.Rect(
                     c * self.cell_size,
                     r * self.cell_size,
@@ -71,15 +78,28 @@ class BridgeWorldRenderer(DiscreteTimeRenderer):
                 )
 
                 bg_to_draw = self.bg_color
+
+                # Check if in bridge zone (rows where bridges exist)
                 if self.bridge_start_row <= r <= self.bridge_end_row:
-                    if bridge_start_col <= c <= bridge_end_col:
-                        bg_to_draw = self.bridge_color
+                    left_start = self.left_bridge_col - self.half_width
+                    left_end = self.left_bridge_col + self.half_width
+                    right_start = self.right_bridge_col - self.half_width
+                    right_end = self.right_bridge_col + self.half_width
+
+                    if left_start <= c <= left_end:
+                        bg_to_draw = self.left_bridge_color
+                    elif right_start <= c <= right_end:
+                        bg_to_draw = self.right_bridge_color
                     else:
                         bg_to_draw = self.abyss_color
 
-                if r == 0 and (bridge_start_col <= c <= bridge_end_col):
+                # Goal is only in front of left bridge (top row)
+                left_start = self.left_bridge_col - self.half_width
+                left_end = self.left_bridge_col + self.half_width
+                if r == 0 and left_start <= c <= left_end:
                     bg_to_draw = self.goal_color
 
+                # Agent position
                 if (r, c) == (agent_row, agent_col):
                     bg_to_draw = self.agent_color
 
