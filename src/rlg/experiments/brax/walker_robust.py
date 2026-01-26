@@ -1,5 +1,4 @@
 import copy
-from typing import NamedTuple
 
 import jax
 import jax.numpy as jp
@@ -10,21 +9,16 @@ from mujoco_playground._src import mjx_env
 from mujoco_playground._src.dm_control_suite.walker import PlanarWalker
 from mujoco_playground._src.mjx_env import render_array
 
-
-class WalkerTaskParams(NamedTuple):
-    mass_scale: jax.Array  # float
-    size_scale: jax.Array  # float
-    damping_scale: jax.Array  # float
+from rlg.experiments.brax.brax_multi_task_wrapper import TaskParams
 
 
 class WalkerRobust(PlanarWalker):
     """Walker environment with robust task variations (Mass, Body)."""
 
-    def __init__(self, move_speed: float = 6.0, task_mode: str = "body"):
+    def __init__(self, move_speed: float = 6.0):
         """
         Args:
             move_speed: Target speed.
-            task_mode: "mass" (only scale mass) or "body" (mass, head size, damping).
         """
         cfg = config_dict.create(
             ctrl_dt=0.025,
@@ -37,7 +31,6 @@ class WalkerRobust(PlanarWalker):
             njmax=100,
         )
         super().__init__(move_speed, cfg)
-        self._task_mode = task_mode
 
         # Cache default physics parameters for scaling
         self._default_body_mass = self.mjx_model.body_mass
@@ -56,7 +49,7 @@ class WalkerRobust(PlanarWalker):
         ]
         self._torso_geom_ids = jp.array(self._torso_geom_ids)
 
-    def _gen_model(self, task_params: WalkerTaskParams) -> mjx.Model:
+    def _gen_model(self, task_params: TaskParams) -> mjx.Model:
         """Generates a new MJX model with scaled physics parameters.
 
         Args:
@@ -66,9 +59,6 @@ class WalkerRobust(PlanarWalker):
         new_mass = self._default_body_mass * task_params.mass_scale
         new_inertia = self._default_body_inertia * task_params.mass_scale
 
-        # 2. Scale Damping (Physical damping level)
-        new_damping = self._default_dof_damping * task_params.damping_scale
-
         # 3. Scale Head Size (Torso Geoms)
         # We update the geom_size for torso geoms.
         # geom_size is (ngeom, 3), we scale relevant rows.
@@ -77,7 +67,7 @@ class WalkerRobust(PlanarWalker):
         new_geom_size = self._default_geom_size
 
         def scale_geom(sizes, idx):
-            return sizes.at[idx, 1].set(sizes[idx, 1] * task_params.size_scale)
+            return sizes.at[idx, 1].set(sizes[idx, 1] * task_params.length_scale)
 
         # Apply scaling to all torso geoms
         for geom_id in self._torso_geom_ids:
@@ -89,11 +79,10 @@ class WalkerRobust(PlanarWalker):
         return self.mjx_model.replace(
             body_mass=new_mass,
             body_inertia=new_inertia,
-            dof_damping=new_damping,
             geom_size=new_geom_size,
         )
 
-    def reset(self, rng: jax.Array, task_params: WalkerTaskParams) -> mjx_env.State:
+    def reset(self, rng: jax.Array, task_params: TaskParams) -> mjx_env.State:
         """Resets the environment using the specified task model."""
         # Standard reset logic...
         rng, rng1, rng2 = jax.random.split(rng, 3)
@@ -155,15 +144,13 @@ class WalkerRobust(PlanarWalker):
         done = done.astype(float)
         return mjx_env.State(data, obs, reward, done, state.metrics, state.info)
 
-    def _augment_obs_with_task(self, obs, task_params: WalkerTaskParams):
-        task_array = jp.array(
-            [task_params.mass_scale, task_params.size_scale, task_params.damping_scale]
-        )
+    def _augment_obs_with_task(self, obs, task_params: TaskParams):
+        task_array = jp.array([task_params.mass_scale, task_params.length_scale])
         return jp.concatenate([obs, jp.log(task_array)], axis=-1)
 
     def render(
         self,
-        task_params: WalkerTaskParams,
+        task_params: TaskParams,
         trajectory,
         height: int = 240,
         width: int = 320,
@@ -177,18 +164,8 @@ class WalkerRobust(PlanarWalker):
 
         # 3. Apply the visual changes to the CPU model
         # Convert JAX array to numpy for MuJoCo C-structs
-        params = np.array(
-            [task_params.mass_scale, task_params.size_scale, task_params.damping_scale]
-        )
-
-        # Check if we are in "body" mode (3 params) or "mass" mode (maybe 1 param)
-        # This logic mirrors your sample_task/gen_model structure
-        if params.size == 3:
-            mass_scale, size_scale, damping_scale = params
-        else:
-            # Fallback if user passes just a mass scalar
-            mass_scale = float(params)
-            size_scale = 1.0
+        params = np.array([task_params.mass_scale, task_params.length_scale])
+        mass_scale, size_scale = params
 
         # Apply Geometry Scaling (Mirroring gen_model logic)
         # We update the geom_size for the torso geoms on the CPU model
