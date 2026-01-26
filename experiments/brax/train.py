@@ -76,10 +76,10 @@ def setup_progress_callback(total_steps: int):
         sps = num_steps / (times[-1] - times[0]).total_seconds()
         logger.info(f"Steps per second: {sps:.2f}")
         remaining = total_steps - num_steps
-        if sps > 0:
+        if sps > 0 and remaining > 0:
             eta_seconds = remaining / sps
             logger.info(
-                f"Estimated remaining: {eta_seconds // 60}:{eta_seconds % 60:02} (mm:ss)"
+                f"Estimated remaining: {int(eta_seconds) // 60}:{int(eta_seconds) % 60:02} (mm:ss)"
             )
 
     return progress, times, metrics_history
@@ -113,7 +113,7 @@ def main(cfg: DictConfig):
     )
 
     # Setup checkpoint path
-    checkpoint_path = Path(cfg.checkpoint_path).absolute()
+    checkpoint_path = Path(cfg.checkpoint_path).resolve()
     logger.info(f"Checkpoints will be saved to: {checkpoint_path}")
 
     # Create training function

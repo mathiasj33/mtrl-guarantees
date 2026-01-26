@@ -101,7 +101,7 @@ def load_policy(cfg: DictConfig, env: CheetahRobust | WalkerRobust, rng: jax.Arr
         Tuple of (inference_fn, rng) where inference_fn is the JIT-compiled policy.
     """
     ckpt_path = find_latest_checkpoint(Path(cfg.checkpoint_path))
-    logger.info(f"Loading checkpoint from: {ckpt_path.absolute()}")
+    logger.info(f"Loading checkpoint from: {ckpt_path.resolve()}")
 
     # Get observation shape by doing a dummy reset
     rng, init_rng = jax.random.split(rng)
@@ -118,7 +118,7 @@ def load_policy(cfg: DictConfig, env: CheetahRobust | WalkerRobust, rng: jax.Arr
     make_policy = ppo_networks.make_inference_fn(ppo_network)
 
     # Load checkpoint and create inference function
-    params = checkpoint.load(ckpt_path.absolute())  # type: ignore
+    params = checkpoint.load(ckpt_path.resolve())  # type: ignore
     inference_fn = make_policy(params, deterministic=cfg.eval.deterministic)
 
     return inference_fn, rng
@@ -144,13 +144,13 @@ def sample_and_save_tasks(
         {
             "task_id": list(range(cfg.eval.num_tasks)),
             "mass_scale": all_tasks_np.mass_scale.tolist(),
-            "torso_length_scale": all_tasks_np.torso_length_scale.tolist(),
+            "length_scale": all_tasks_np.length_scale.tolist(),
         }
     )
     tasks_path = Path(cfg.output.dir) / cfg.output.tasks_file
     tasks_path.parent.mkdir(parents=True, exist_ok=True)
     tasks_df.write_parquet(tasks_path)
-    logger.info(f"Saved task parameters to {tasks_path.absolute()}")
+    logger.info(f"Saved task parameters to {tasks_path.resolve()}")
 
     return all_tasks, rng
 

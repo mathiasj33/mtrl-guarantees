@@ -18,8 +18,8 @@ checkpoint_path: ../${env.name}/checkpoints/${run}
 
 # Evaluation settings
 eval:
-  num_tasks: 10
-  num_episodes_per_task: 100
+  num_tasks: 1000
+  num_episodes_per_task: 10000
   deterministic: true
 
 batch_size: 8192 # Number of episodes to evaluate in parallel
