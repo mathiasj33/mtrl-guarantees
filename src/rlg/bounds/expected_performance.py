@@ -9,6 +9,8 @@ from scipy.stats import binom
 
 def compute_guarantees(
     lower_bounds: list[float],
+    min_return: float,
+    max_return: float,
     beta: float,
     delta: float,
     step_size: int = 5,
@@ -41,6 +43,8 @@ def compute_guarantees(
     )
     probs = cast(list[float], probs)
     guarantees = [lower_bounds[k] for k in k_values]
+    guarantees = [min_return] + guarantees + [max_return]
+    probs = [1.0] + probs + [0.0]
     return guarantees, probs
 
 

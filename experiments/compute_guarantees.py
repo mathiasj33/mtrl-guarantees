@@ -60,6 +60,8 @@ def main(cfg: DictConfig):
 
         guarantees, probs = compute_guarantees(
             lower_bounds=bounds["lower_bound"].to_list(),
+            min_return=cfg.guarantees.min_return,
+            max_return=cfg.guarantees.max_return,
             beta=cfg.guarantees.beta,
             delta=cfg.guarantees.delta,
             step_size=cfg.guarantees.step_size,
