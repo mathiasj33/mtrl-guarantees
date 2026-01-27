@@ -11,42 +11,32 @@ sns.set_theme(style="darkgrid")
 def main():
     setup_latex_fonts()
 
-    left_policy_guarantees = RUN_DIR / "bridge_world/eval/left_bridge/guarantees.csv"
-    left_policy_empirical = (
-        RUN_DIR / "bridge_world/eval/left_bridge/empirical_safety.csv"
-    )
-    right_policy_guarantees = RUN_DIR / "bridge_world/eval/right_bridge/guarantees.csv"
-    right_policy_empirical = (
-        RUN_DIR / "bridge_world/eval/right_bridge/empirical_safety.csv"
-    )
+    guarantees = pd.read_csv(RUN_DIR / "cheetah/eval/main/guarantees.csv")
+    empirical = pd.read_csv(RUN_DIR / "cheetah/eval/main/empirical_safety.csv")
+    guarantees = guarantees.query("num_tasks == 200 & num_episodes == 1000")
 
-    left_policy_guarantees = pd.read_csv(left_policy_guarantees)
-    left_policy_empirical = pd.read_csv(left_policy_empirical)
-    right_policy_guarantees = pd.read_csv(right_policy_guarantees)
-    right_policy_empirical = pd.read_csv(right_policy_empirical)
-
-    fig, ax = plt.subplots(figsize=(6, 6), dpi=300)
+    fig, ax = plt.subplots(figsize=(8, 6), dpi=300)
     fig.patch.set_facecolor("white")
     apply_anthropic_style(ax)
 
     # swapped: x = guarantees (t), y = probs (1-δ)
     ax.plot(
-        left_policy_guarantees["guarantee"],
-        left_policy_guarantees["prob"],
+        guarantees["guarantee"],
+        guarantees["prob"],
         color=ANTHROPIC["red_dark"],
         linewidth=2.8,
         solid_capstyle="round",
         drawstyle="steps-pre",
-        label=r"\textbf{Certified Bound $1-\varepsilon$}",
+        label=r"\textbf{Certified Bound}",
     )
     ax.plot(
-        left_policy_empirical["guarantee"],
-        left_policy_empirical["empirical_safety"],
-        color=ANTHROPIC["red_dark"],
+        empirical["guarantee"],
+        empirical["empirical_safety"],
+        color=ANTHROPIC["red_dark_translucent"],
         linewidth=2.8,
         linestyle="--",
         dash_capstyle="round",
-        label=r"\textbf{Actual Safety $S_{\mathcal{D}}^\pi(B)$}",
+        label=r"\textbf{Empirical Safety}",
     )
 
     ax.set_xlabel(
@@ -71,9 +61,9 @@ def main():
         borderpad=0.2,
     )
 
-    ax.set_xlim(left=0.5)
+    ax.set_xlim(left=0.4)
     fig.tight_layout(pad=0.8)
-    out = PAPER_DIR / "plots/bridge_world.pdf"
+    out = PAPER_DIR / "plots/cheetah.pdf"
     plt.savefig(out, format="pdf", dpi=300, bbox_inches="tight")
     print(f"Plot 2 saved to: {out}")
 

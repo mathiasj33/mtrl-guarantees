@@ -16,8 +16,8 @@ guarantees:
   bound: bernstein # options: hoeffding, bernstein, dkw, clopper-pearson
   min_return: 0.0
   max_return: 1000.0
-  num_tasks: [50, 500]
-  num_episodes: [100, 2000]
+  num_tasks: [200, 500]
+  num_episodes: [1000, 2000]
   beta: 1e-4 # confidence level for individual lower bounds
   delta: 1e-2 # desired overall confidence level
   step_size: 1

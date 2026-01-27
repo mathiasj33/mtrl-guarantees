@@ -12,6 +12,6 @@ results:
   dir: ../${env.name}/eval/${run}
 
 plot:
-  bounds: [bernstein, hoeffding]
-  num_tasks: [100, 500]
-  num_episodes: [500, 2000]
+  bounds: [bernstein]
+  num_tasks: [500]
+  num_episodes: [100, 500, 1000]

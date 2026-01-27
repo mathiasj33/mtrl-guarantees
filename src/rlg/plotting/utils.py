@@ -3,7 +3,9 @@ from matplotlib import pyplot as plt
 
 ANTHROPIC = {
     "red_dark": "#9A3412",  # deep warm red-brown
+    "red_dark_translucent": (154 / 255, 52 / 255, 18 / 255, 0.5),
     "orange_light": "#FDBA74",  # light peach/orange
+    "orange_light_translucent": (253 / 255, 186 / 255, 116 / 255, 0.5),
     "ink": "#0f172a",  # slate/near-black
     "grid": "#e5e7eb",  # very light gray
 }
