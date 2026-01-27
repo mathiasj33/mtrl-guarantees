@@ -1,0 +1,36 @@
+defaults:
+  - hydra: experiment
+  - _self_
+
+name: eval_bridge
+run: main
+
+# Policy to evaluate: "left_bridge" or "right_bridge"
+policy: left_bridge
+
+env:
+  name: bridge_world
+  episode_length: 50 # Max steps per episode
+
+# Wind parameter sampling bounds
+wind_sampling:
+  left_min: 0.2
+  left_max: 0.3
+  right_min: 0.0
+  right_max: 0.2
+
+# Evaluation settings
+eval:
+  num_tasks: 1000
+  num_episodes_per_task: 10000
+
+batch_size: 65536 # Number of episodes to evaluate in parallel
+
+# Output settings
+output:
+  dir: ../bridge_world/${policy}
+  results_file: episode_returns.parquet
+  tasks_file: task_params.parquet
+
+# Random seed
+seed: 0

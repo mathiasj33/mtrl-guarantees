@@ -24,7 +24,9 @@ logger = logging.getLogger(__name__)
 
 @hydra.main(version_base="1.1", config_path="../conf", config_name="compute_guarantees")
 def main(cfg: DictConfig):
-    full_df = pl.read_parquet(f"{cfg.results.dir}/{cfg.results.results_file}")
+    path = Path(f"{cfg.results.dir}/{cfg.results.results_file}").resolve()
+    logger.info(f"Loading episode returns from {path}")
+    full_df = pl.read_parquet(path)
 
     total_num_tasks = full_df["task_id"].n_unique()
     total_num_episodes = full_df["episode_id"].n_unique()

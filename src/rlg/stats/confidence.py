@@ -5,21 +5,37 @@ import polars as pl
 from scipy import stats
 
 
-def clopper_pearson(k, n, beta=0.05):
+def clopper_pearson(df, min_return, max_return, beta=0.05):
     """
     Computes Clopper-Pearson confidence intervals for binomial success.
 
     Args:
-        k: Number of successes (int or array-like)
-        n: Number of trials (int or array-like)
-        gamma: Significance level (float), default 0.05
+        df: Polars dataframe with task_id, episode_id, total_return columns
+        min_return: Minimum possible return (float)
+        max_return: Maximum possible return (float)
+        beta: Significance level (float), default 0.05
 
     Returns:
         lower_bound: Lower bound of the confidence interval (float or array-like)
     """
+    assert min_return == 0.0 and max_return == 1.0, (
+        "Clopper-Pearson is only valid for Bernoulli returns in [0, 1]"
+    )
+    # Compute number of successes and trials per task
+    stats_df = (
+        df.group_by("task_id")
+        .agg(
+            [
+                pl.col("total_return").sum().alias("k_successes"),
+                pl.col("episode_id").count().alias("n_trials"),
+            ]
+        )
+        .sort("task_id")
+    )
+
     # Ensure inputs are numpy arrays for vectorized operations
-    k = np.array(k)
-    n = np.array(n)
+    k = np.array(stats_df["k_successes"])
+    n = np.array(stats_df["n_trials"])
 
     # --- Lower bound ---
     # Use beta.ppf(alpha, k, n - k + 1)
@@ -27,7 +43,14 @@ def clopper_pearson(k, n, beta=0.05):
     # We use np.nan_to_num to handle the edge case k=0, which returns NaN
     lower = stats.beta.ppf(beta, k, n - k + 1)
     lower = np.nan_to_num(lower, nan=0.0)
-    return lower
+
+    return pl.DataFrame(
+        {
+            "task_id": stats_df["task_id"],
+            "mean_return": stats_df["k_successes"] / stats_df["n_trials"],
+            "lower_bound": lower,
+        }
+    )
 
 
 def hoeffding(df, min_return, max_return, beta=0.05):
@@ -149,7 +172,7 @@ def empirical_bernstein(df, min_return, max_return, beta=0.05):
 def dkw_mean_lower_bound(df, min_return, max_return, beta=0.05):
     """
     Computes a guaranteed lower bound on the mean using the
-    Dvoretzky–Kiefer–Wolfowitz (DKW) inequality.
+    Dvoretzky-Kiefer-Wolfowitz (DKW) inequality.
 
     This constructs the "worst-case" CDF that fits within the DKW
     confidence band and computes its mean.
