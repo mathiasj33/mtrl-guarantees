@@ -5,7 +5,7 @@ Functions for reproducing the simple gridworld motivating experiment in the pape
 from typing import Any, NamedTuple
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from tqdm import trange
 
 
@@ -14,25 +14,19 @@ class WorldParams(NamedTuple):
     width: int
 
 
-def run(params: WorldParams, num_tasks: int, num_episodes: int) -> pd.DataFrame:
-    data = []
+def run(params: WorldParams, num_tasks: int, num_episodes: int) -> pl.DataFrame:
+    dfs = []
     for task_id in trange(num_tasks):
         results = collect_episodes(params, num_episodes)
-        data.append(
-            [task_id, num_episodes, np.sum(results), np.min(results), np.max(results)]
+        df = pl.DataFrame(
+            {
+                "task_id": task_id,
+                "episode_id": np.arange(num_episodes),
+                "total_return": results,
+            }
         )
-
-    df = pd.DataFrame(
-        data,
-        columns=[
-            "task_id",
-            "num_episodes",
-            "num_successes",
-            "min",
-            "max",
-        ],
-    )
-    return df
+        dfs.append(df)
+    return pl.concat(dfs)
 
 
 def collect_episodes(params: WorldParams, num_episodes: int) -> list[float]:

@@ -4,7 +4,7 @@ defaults:
 
 name: simple_grid
 num_tasks: 1000
-num_episodes: 1e4
+num_episodes: 10000
 world_params:
   _target_: rlg.experiments.simple_grid.WorldParams
   slip_dist:

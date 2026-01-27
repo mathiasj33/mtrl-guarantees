@@ -29,6 +29,7 @@ def main():
         left_policy_guarantees["prob"],
         label="Left (Bound)",
         color=colors[0],
+        drawstyle="steps-pre",
     )
     plt.plot(
         left_policy_empirical["guarantee"],
@@ -36,6 +37,7 @@ def main():
         label="Left (Empirical)",
         linestyle="--",
         color=colors[0],
+        drawstyle="steps-pre",
     )
 
     plt.plot(
@@ -43,6 +45,7 @@ def main():
         right_policy_guarantees["prob"],
         label="Right (Bound)",
         color=colors[1],
+        drawstyle="steps-pre",
     )
     plt.plot(
         right_policy_empirical["guarantee"],
@@ -50,6 +53,7 @@ def main():
         label="Right (Empirical)",
         linestyle="--",
         color=colors[1],
+        drawstyle="steps-pre",
     )
 
     plt.xlabel("Guarantee")

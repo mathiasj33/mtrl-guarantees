@@ -7,10 +7,9 @@ import numpy as np
 import pandas as pd
 from omegaconf import DictConfig
 
-from rlg.bounds.expected_performance import compute_guarantees
+from rlg import RUN_DIR
 from rlg.experiments import simple_grid
 from rlg.experiments.simple_grid import WorldParams
-from rlg.stats.confidence import clopper_pearson
 
 logger = logging.getLogger(__name__)
 
@@ -24,32 +23,15 @@ def main(cfg: DictConfig):
     df = simple_grid.run(
         params=params, num_tasks=int(cfg.num_tasks), num_episodes=int(cfg.num_episodes)
     )
-    df.to_csv("results.csv", index=False)
-    logger.info("Saved results to results.csv")
-    logger.info(
-        f"Computing guarantees with gamma={cfg.bounds.gamma}, eta={cfg.bounds.eta}"
-    )
-    lower_bounds = clopper_pearson(
-        df["num_successes"], df["num_episodes"], cfg.bounds.gamma
-    )
-    guarantees, probs = compute_guarantees(
-        lower_bounds=lower_bounds.tolist(),
-        beta=cfg.bounds.beta,
-        delta=cfg.bounds.delta,
-        step_size=cfg.bounds.step_size,
-        n_jobs=cfg.bounds.n_jobs,
-    )
-    pd.DataFrame({"guarantees": guarantees, "probs": probs}).to_csv(
-        "guarantees.csv", index=False
-    )
-    logger.info("Saved computed bounds to guarantees.csv")
-    lowest_guarantee = guarantees[0]
-    actual_guarantees, actual_probs = compute_actual_guarantees(
-        params, start=lowest_guarantee
-    )
-    pd.DataFrame({"guarantees": actual_guarantees, "probs": actual_probs}).to_csv(
-        "actual_guarantees.csv", index=False
-    )
+    path = RUN_DIR / "simple_grid" / "eval" / "main" / "episode_returns.parquet"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.write_parquet(path)
+    logger.info(f"Saved {len(df)} episode results to {path}")
+
+    actual_guarantees, actual_probs = compute_actual_guarantees(params, start=0.0)
+    pd.DataFrame(
+        {"guarantee": actual_guarantees, "actual_safety": actual_probs}
+    ).to_csv(path.parent / "actual_guarantees.csv", index=False)
 
 
 def compute_actual_guarantees(
@@ -65,7 +47,7 @@ def compute_actual_guarantees(
         A tuple (guarantees, probs) of performance guarantees and the probability with
         which they are satisfied.
     """
-    guarantees = np.linspace(start, 1.0, 100)
+    guarantees = np.linspace(start, 1.0, 1000)
     associated_params = 1 - guarantees ** (1 / (params.width - 1))
     probs: np.ndarray = params.slip_dist.cdf(associated_params)  # type: ignore
     return guarantees, probs
