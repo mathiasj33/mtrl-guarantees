@@ -56,8 +56,8 @@ def main(cfg: DictConfig):
     path = RUN_DIR / "simple_grid" / "eval" / "main"
     guarantees = pd.read_csv(path / "guarantees.csv")
     actual_guarantees = pd.read_csv(path / "actual_guarantees.csv")
-    num_tasks = 50
-    num_episodes = 1000
+    num_tasks = 30
+    num_episodes = 4000
     guarantees = guarantees.query(
         "num_tasks == @num_tasks and num_episodes == @num_episodes"
     )
@@ -112,7 +112,7 @@ def main(cfg: DictConfig):
     fig2.tight_layout(pad=0.8)
 
     # Save as high-quality PDF
-    output_path2 = Path.cwd() / "plot_guarantees.pdf"
+    output_path2 = Path.cwd() / f"plot_guarantees_{num_tasks}_{num_episodes}.pdf"
     plt.savefig(output_path2, format="pdf", dpi=300, bbox_inches="tight")
     print(f"Plot 2 saved to: {output_path2}")
 

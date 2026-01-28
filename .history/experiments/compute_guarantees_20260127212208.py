@@ -12,8 +12,12 @@ import polars as pl
 from omegaconf import DictConfig
 
 from rlg.bounds.expected_performance import compute_guarantees
-from rlg.stats.confidence import (clopper_pearson, dkw_mean_lower_bound,
-                                  empirical_bernstein, hoeffding)
+from rlg.stats.confidence import (
+    clopper_pearson,
+    dkw_mean_lower_bound,
+    empirical_bernstein,
+    hoeffding,
+)
 
 logger = logging.getLogger(__name__)
 

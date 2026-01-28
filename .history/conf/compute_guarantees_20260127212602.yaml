@@ -13,11 +13,11 @@ results:
   results_file: episode_returns.parquet
 
 guarantees:
-  bound: clopper-pearson # options: hoeffding, bernstein, dkw, clopper-pearson
+  bound: bernstein # options: hoeffding, bernstein, dkw, clopper-pearson
   min_return: 0.0
-  max_return: 1.0
-  num_tasks: [100]
-  num_episodes: [100,200,300,400,500,600,700,800,900,1000]
+  max_return: 1000.0
+  num_tasks: [10200, 500]
+  num_episodes: [1000, 2000]
   beta: 1e-4 # confidence level for individual lower bounds
   delta: 1e-2 # desired overall confidence level
   step_size: 1

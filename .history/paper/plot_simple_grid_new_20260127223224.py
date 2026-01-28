@@ -112,7 +112,7 @@ def main(cfg: DictConfig):
     fig2.tight_layout(pad=0.8)
 
     # Save as high-quality PDF
-    output_path2 = Path.cwd() / "plot_guarantees.pdf"
+    output_path2 = Path.cwd() / f"plot_guarantees_{num_tasks}_{num_episodes}.pdf"
     plt.savefig(output_path2, format="pdf", dpi=300, bbox_inches="tight")
     print(f"Plot 2 saved to: {output_path2}")
 

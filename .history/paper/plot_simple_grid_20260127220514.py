@@ -57,7 +57,7 @@ def main(cfg: DictConfig):
     guarantees = pd.read_csv(path / "guarantees.csv")
     actual_guarantees = pd.read_csv(path / "actual_guarantees.csv")
     num_tasks = 50
-    num_episodes = 1000
+    num_episodes = 100
     guarantees = guarantees.query(
         "num_tasks == @num_tasks and num_episodes == @num_episodes"
     )

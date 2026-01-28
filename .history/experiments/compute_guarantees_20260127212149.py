@@ -12,8 +12,12 @@ import polars as pl
 from omegaconf import DictConfig
 
 from rlg.bounds.expected_performance import compute_guarantees
-from rlg.stats.confidence import (clopper_pearson, dkw_mean_lower_bound,
-                                  empirical_bernstein, hoeffding)
+from rlg.stats.confidence import (
+    clopper_pearson,
+    dkw_mean_lower_bound,
+    empirical_bernstein,
+    hoeffding,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,15 +72,11 @@ def main(cfg: DictConfig):
         guarantees = [x[0] for x in paired]
         probs = [x[1] for x in paired]
         
-        # Sanity checks - allow small numerical errors
+        # Sanity checks
         assert all(
-            guarantees[i] <= guarantees[i + 1] + 1e-9 for i in range(len(guarantees) - 1)
-        ), "Guarantees should be monotonically increasing"
-        # Probs should be monotonically decreasing (with tolerance for numerical errors)
-        for i in range(len(probs) - 1):
-            if probs[i] < probs[i + 1] - 1e-9:
-                # Log warning but don't assert
-                logger.warning(f"Prob decreasing at index {i}: {probs[i]} < {probs[i + 1]}")
+            guarantees[i] <= guarantees[i + 1] for i in range(len(guarantees) - 1)
+        )
+        assert all(probs[i] >= probs[i + 1] for i in range(len(probs) - 1))
 
         # Save guarantees
         g_df = pd.DataFrame(
