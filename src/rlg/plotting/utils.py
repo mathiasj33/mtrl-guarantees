@@ -1,5 +1,10 @@
 # --- Warm "Anthropic-ish" palette (high contrast pair) ---
+import hashlib
+import os
+
 from matplotlib import pyplot as plt
+import numpy as np
+import pandas as pd
 
 ANTHROPIC = {
     "red_dark": "#9A3412",  # deep warm red-brown
@@ -75,3 +80,92 @@ def apply_anthropic_style(ax: plt.Axes) -> None:
         length=3,
         colors=ANTHROPIC["ink"],
     )
+
+
+def summarize_step_curves(
+    df: pd.DataFrame,
+    num_tasks: int,
+    num_episodes: int,
+    num_points: int = 500,
+    batch_col: str = "batch_id",
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    subset = df.query("num_tasks == @num_tasks and num_episodes == @num_episodes")
+    if subset.empty:
+        raise ValueError(
+            "No guarantees found for the requested num_tasks/num_episodes combination."
+        )
+
+    min_g = subset["guarantee"].min()
+    max_g = subset["guarantee"].max()
+    grid = np.linspace(min_g, max_g, num_points)
+
+    curves = []
+    for _, group in subset.groupby(batch_col):
+        guarantees = group["guarantee"].to_numpy()
+        probs = group["prob"].to_numpy()
+        order = np.argsort(guarantees)
+        guarantees = guarantees[order]
+        probs = probs[order]
+        idx = np.searchsorted(guarantees, grid, side="right")
+        idx = np.clip(idx, 0, len(probs) - 1)
+        curves.append(probs[idx])
+
+    stacked = np.vstack(curves)
+    mean = stacked.mean(axis=0)
+    std = stacked.std(axis=0)
+    return grid, mean, std
+
+
+def resolve_plot_params(default_tasks: int, default_episodes: int) -> tuple[int, int]:
+    tasks = int(os.getenv("PLOT_NUM_TASKS", default_tasks))
+    episodes = int(os.getenv("PLOT_NUM_EPISODES", default_episodes))
+    return tasks, episodes
+
+
+def guarantees_batches_filename(num_tasks: int, num_episodes: int) -> str:
+    return f"guarantees_batches_tasks{num_tasks}_episodes{num_episodes}.csv"
+
+
+def resolve_plot_combos(
+    default_tasks: int, default_episodes: int
+) -> list[tuple[int, int]]:
+    combos_env = os.getenv("PLOT_COMBOS")
+    if not combos_env:
+        return [resolve_plot_params(default_tasks, default_episodes)]
+
+    combos = []
+    for chunk in combos_env.split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        if "x" in chunk:
+            left, right = chunk.split("x", 1)
+        elif ":" in chunk:
+            left, right = chunk.split(":", 1)
+        else:
+            raise ValueError(
+                "PLOT_COMBOS entries must be formatted like 'tasksxepisodes'."
+            )
+        combos.append((int(left), int(right)))
+    if not combos:
+        return [resolve_plot_params(default_tasks, default_episodes)]
+    return combos
+
+
+def plot_suffix_from_combos(combos: list[tuple[int, int]]) -> str:
+    parts = [f"tasks{tasks}_episodes{episodes}" for tasks, episodes in combos]
+    return "_".join(parts)
+
+
+def combo_color(
+    num_tasks: int,
+    num_episodes: int,
+    cmap_name: str,
+    low: float = 0.45,
+    high: float = 0.85,
+) -> tuple[float, float, float, float]:
+    key = f"{num_tasks}x{num_episodes}"
+    digest = hashlib.md5(key.encode("ascii")).hexdigest()
+    raw = int(digest[:8], 16) / 0xFFFFFFFF
+    value = low + (high - low) * raw
+    return plt.get_cmap(cmap_name)(value)

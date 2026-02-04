@@ -1,6 +1,5 @@
 [project]
 authors = [
-    { name = "Mathias Jackermeier", email = "mathias.jackermeier@outlook.com" },
 ]
 name = "rlg"
 requires-python = ">=3.12,<3.13"
