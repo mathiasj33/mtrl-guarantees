@@ -6,6 +6,11 @@
 This repository contains code for computing and plotting performance guarantees for multi-task reinforcement learning policies. It is the official implementation of
 [Probabilistic Performance Guarantees for Multi-Task Reinforcement Learning](https://arxiv.org/pdf/2602.02098).
 
+
+https://github.com/user-attachments/assets/c7eee489-2711-4766-a56f-1cedf23e1e20
+
+https://github.com/user-attachments/assets/a9ef6807-5f67-4453-834f-070b06eb4142
+
 ## Repository Layout
 
 - `experiments/`: Scripts to compute guarantees and evaluate policies.
