@@ -3,14 +3,14 @@ defaults:
   - _self_
 
 env:
-  name: simple_grid
+  name: simple_grid # options: simple_grid, bridge_world/left_bridge, bridge_world/right_bridge, cheetah, walker, zones
 
 output: guarantees/${env.name}
 
 guarantees:
   bound: clopper-pearson # options: hoeffding, bernstein, dkw, clopper-pearson
   num_batches: 10
-  num_tasks: 100
+  num_tasks: 200
   num_episodes: [1000]
   summary_points: 600
   beta: 1e-4

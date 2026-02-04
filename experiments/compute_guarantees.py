@@ -24,9 +24,7 @@ from rlg.stats.confidence import (
 logger = logging.getLogger(__name__)
 
 
-@hydra.main(
-    version_base="1.1", config_path="../conf", config_name="compute_guarantees"
-)
+@hydra.main(version_base="1.1", config_path="../conf", config_name="compute_guarantees")
 def main(cfg: DictConfig):
     returns_path = DATA_DIR / cfg.env.name / "episode_returns.parquet"
     logger.info(f"Loading episode returns from {returns_path}")
@@ -34,7 +32,7 @@ def main(cfg: DictConfig):
 
     bound_name = cfg.guarantees.bound
     min_return = 0.0
-    max_return = 1000.0 if cfg.env.name in ["cheetah", "walker"] else 0.0
+    max_return = 1000.0 if cfg.env.name in ["cheetah", "walker"] else 1.0
     beta = cfg.guarantees.beta
     delta = cfg.guarantees.delta
 
@@ -44,7 +42,7 @@ def main(cfg: DictConfig):
         raise ValueError("Clopper-Pearson bound requires returns in [0, 1] range.")
 
     output_path = Path(cfg.output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.mkdir(parents=True, exist_ok=True)
 
     total_num_tasks = full_df["task_id"].n_unique()
     total_num_episodes = full_df["episode_id"].n_unique()
