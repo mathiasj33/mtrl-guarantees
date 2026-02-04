@@ -6823,7 +6823,7 @@ packages:
 - pypi: ./
   name: rlg
   version: 0.1.0
-  sha256: c7c710b64e06ae977c3ba24c2606c4ec82fe84f3dd75bae386f0ca6997988580
+  sha256: a879741b0b791a12287338c6451a7a12284f9058d7f771707511c7f759390ec9
   requires_dist:
   - jax>=0.7.2,<0.8
   requires_python: '>=3.12,<3.13'

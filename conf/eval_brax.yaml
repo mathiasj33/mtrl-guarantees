@@ -2,9 +2,6 @@ defaults:
   - hydra: simple
   - _self_
 
-name: eval
-run: main
-
 env:
   name: cheetah # cheetah or walker
   episode_length: 1000
@@ -26,8 +23,8 @@ batch_size: 8192 # Number of episodes to evaluate in parallel
 # Output settings
 output:
   dir: data/${env.name}/
-  results_file: episode_returns_TMP.parquet
-  tasks_file: task_params_TMP.parquet
+  results_file: episode_returns.parquet
+  tasks_file: task_params.parquet
 
 # Random seed
 seed: 0
