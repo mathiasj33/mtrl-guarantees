@@ -152,6 +152,16 @@ Configuration options are in `conf/eval_zones.yaml`:
 
 Results are saved to `data/zones/episode_returns.parquet`.
 
+### Simple Grid (Motivating Experiment)
+
+Reproduce the motivating experiment by evaluating the optimal policy:
+
+```bash
+pixi run python experiments/simple_grid/run.py
+```
+
+This generates `data/simple_grid/episode_returns.parquet` and `data/simple_grid/actual_guarantees.csv`.
+
 ## Training Policies
 
 For completeness, we provide code to train multi-task policies from scratch in the environments.
