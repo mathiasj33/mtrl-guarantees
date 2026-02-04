@@ -22,7 +22,7 @@ from tqdm import trange
 
 from rlg.experiments.brax.brax_multi_task_wrapper import TaskParams
 from rlg.experiments.brax.cheetah_robust import CheetahRobust
-from rlg.experiments.brax.utils import find_latest_checkpoint, load_env, sample_task
+from rlg.experiments.brax.utils import load_env, sample_task
 from rlg.experiments.brax.walker_robust import WalkerRobust
 
 logger = logging.getLogger(__name__)
@@ -100,7 +100,7 @@ def load_policy(cfg: DictConfig, env: CheetahRobust | WalkerRobust, rng: jax.Arr
     Returns:
         Tuple of (inference_fn, rng) where inference_fn is the JIT-compiled policy.
     """
-    ckpt_path = find_latest_checkpoint(Path(cfg.checkpoint_path))
+    ckpt_path = Path(cfg.checkpoint_path)
     logger.info(f"Loading checkpoint from: {ckpt_path.resolve()}")
 
     # Get observation shape by doing a dummy reset
