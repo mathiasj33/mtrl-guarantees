@@ -2,9 +2,6 @@ defaults:
   - hydra: simple
   - _self_
 
-name: deep_ltl
-run: main
-
 env:
   name: ZoneEnv
   use_precomputed_resets: true
@@ -24,7 +21,7 @@ eval:
 
 # Output settings
 output:
-  dir: ../${env.name}/eval/${run}
+  dir: data/zones/
   results_file: episode_returns.parquet
   tasks_file: task_params.parquet
 
