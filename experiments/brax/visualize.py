@@ -18,7 +18,7 @@ from omegaconf import DictConfig
 from tqdm import trange
 
 from rlg.experiments.brax.brax_multi_task_wrapper import TaskParams
-from rlg.experiments.brax.utils import find_latest_checkpoint, load_env
+from rlg.experiments.brax.utils import load_env
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +29,7 @@ def main(cfg: DictConfig):
 
     # Find checkpoint
     checkpoint_path = Path(cfg.checkpoint_path).resolve()
-    ckpt_path = find_latest_checkpoint(checkpoint_path)
-    logger.info(f"Loading checkpoint from: {ckpt_path}")
+    logger.info(f"Loading checkpoint from: {checkpoint_path}")
 
     # Create environment
     env = load_env(cfg.env.name)
@@ -64,7 +63,7 @@ def main(cfg: DictConfig):
     make_policy = ppo_networks.make_inference_fn(ppo_network)
 
     # Load checkpoint and create inference function
-    params = checkpoint.load(ckpt_path.absolute())  # type: ignore
+    params = checkpoint.load(checkpoint_path.absolute())  # type: ignore
     jit_inference_fn = jax.jit(
         make_policy(params, deterministic=cfg.rollout.deterministic)
     )

@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from omegaconf import DictConfig
 
-from rlg import RUN_DIR
+from rlg import DATA_DIR
 from rlg.experiments import simple_grid
 from rlg.experiments.simple_grid import WorldParams
 
@@ -23,7 +23,7 @@ def main(cfg: DictConfig):
     df = simple_grid.run(
         params=params, num_tasks=int(cfg.num_tasks), num_episodes=int(cfg.num_episodes)
     )
-    path = RUN_DIR / "simple_grid" / "eval" / "main" / "episode_returns.parquet"
+    path = DATA_DIR / "simple_grid" / "episode_returns.parquet"
     path.parent.mkdir(parents=True, exist_ok=True)
     df.write_parquet(path)
     logger.info(f"Saved {len(df)} episode results to {path}")

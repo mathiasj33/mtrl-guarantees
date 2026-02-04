@@ -1,8 +1,7 @@
 defaults:
-  - hydra: experiment
+  - hydra: simple
   - _self_
 
-name: train
 run: tmp # run name, used for storing model checkpoints
 
 env:
@@ -15,7 +14,7 @@ task_sampling:
   log_tau_max: 1.0
 
 # Checkpoint settings, defaults to runs/env_name/checkpoint
-checkpoint_path: ../${env.name}/checkpoints/${run}
+checkpoint_path: models/${env.name}_${run}
 
 # Eval settings for evaluation during training
 eval:

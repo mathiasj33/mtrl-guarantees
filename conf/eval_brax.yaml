@@ -1,9 +1,6 @@
 defaults:
-  - hydra: experiment
+  - hydra: simple
   - _self_
-
-name: eval
-run: main
 
 env:
   name: cheetah # cheetah or walker
@@ -13,20 +10,19 @@ task_sampling:
   log_tau_min: -1.0
   log_tau_max: 1.0
 
-# Checkpoint settings, defaults to runs/env_name/checkpoint
-checkpoint_path: ../${env.name}/checkpoints/${run}
+checkpoint_path: models/${env.name}/
 
 # Evaluation settings
 eval:
-  num_tasks: 1000
-  num_episodes_per_task: 10000
+  num_tasks: 10
+  num_episodes_per_task: 10
   deterministic: true
 
 batch_size: 8192 # Number of episodes to evaluate in parallel
 
 # Output settings
 output:
-  dir: ../${env.name}/eval/${run}
+  dir: data/${env.name}/
   results_file: episode_returns.parquet
   tasks_file: task_params.parquet
 

@@ -1,12 +1,11 @@
 # --- Warm "Anthropic-ish" palette (high contrast pair) ---
-import hashlib
 import os
 
-from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
 
-ANTHROPIC = {
+COLORS = {
     "red_dark": "#9A3412",  # deep warm red-brown
     "red_dark_translucent": (154 / 255, 52 / 255, 18 / 255, 0.5),
     "orange_light": "#FDBA74",  # light peach/orange
@@ -42,7 +41,7 @@ def setup_latex_fonts() -> None:
         )
 
 
-def apply_anthropic_style(ax: plt.Axes) -> None:
+def apply_style(ax: plt.Axes) -> None:
     ax.set_facecolor((0.98, 0.95, 0.95, 0.3))
     ax.set_axisbelow(True)
 
@@ -52,7 +51,7 @@ def apply_anthropic_style(ax: plt.Axes) -> None:
         which="major",
         linestyle=(0, (3, 3)),
         linewidth=0.9,
-        color=ANTHROPIC["grid"],
+        color=COLORS["grid"],
         alpha=0.9,
     )
     ax.grid(False, which="minor")
@@ -60,7 +59,7 @@ def apply_anthropic_style(ax: plt.Axes) -> None:
     # show all spines, thicker
     for side in ["top", "right", "left", "bottom"]:
         ax.spines[side].set_visible(True)
-        ax.spines[side].set_color(ANTHROPIC["ink"])
+        ax.spines[side].set_color(COLORS["ink"])
         ax.spines[side].set_linewidth(3.2)
 
     # ticks
@@ -70,7 +69,7 @@ def apply_anthropic_style(ax: plt.Axes) -> None:
         labelsize=24,
         width=1.9,
         length=6,
-        colors=ANTHROPIC["ink"],
+        colors=COLORS["ink"],
         pad=3,
     )
     ax.tick_params(
@@ -78,7 +77,7 @@ def apply_anthropic_style(ax: plt.Axes) -> None:
         which="minor",
         width=1.2,
         length=3,
-        colors=ANTHROPIC["ink"],
+        colors=COLORS["ink"],
     )
 
 
@@ -122,19 +121,13 @@ def resolve_plot_params(default_tasks: int, default_episodes: int) -> tuple[int,
     return tasks, episodes
 
 
-def guarantees_batches_filename(num_tasks: int, num_episodes: int) -> str:
-    return f"guarantees_batches_tasks{num_tasks}_episodes{num_episodes}.csv"
+def get_guarantees_filename(num_tasks: int, num_episodes: int) -> str:
+    return f"guarantees_tasks{num_tasks}_episodes{num_episodes}.csv"
 
 
-def resolve_plot_combos(
-    default_tasks: int, default_episodes: int
-) -> list[tuple[int, int]]:
-    combos_env = os.getenv("PLOT_COMBOS")
-    if not combos_env:
-        return [resolve_plot_params(default_tasks, default_episodes)]
-
+def resolve_plot_combos(combinations: list[str]) -> list[tuple[int, int]]:
     combos = []
-    for chunk in combos_env.split(","):
+    for chunk in combinations:
         chunk = chunk.strip()
         if not chunk:
             continue
@@ -147,25 +140,9 @@ def resolve_plot_combos(
                 "PLOT_COMBOS entries must be formatted like 'tasksxepisodes'."
             )
         combos.append((int(left), int(right)))
-    if not combos:
-        return [resolve_plot_params(default_tasks, default_episodes)]
     return combos
 
 
 def plot_suffix_from_combos(combos: list[tuple[int, int]]) -> str:
     parts = [f"tasks{tasks}_episodes{episodes}" for tasks, episodes in combos]
     return "_".join(parts)
-
-
-def combo_color(
-    num_tasks: int,
-    num_episodes: int,
-    cmap_name: str,
-    low: float = 0.45,
-    high: float = 0.85,
-) -> tuple[float, float, float, float]:
-    key = f"{num_tasks}x{num_episodes}"
-    digest = hashlib.md5(key.encode("ascii")).hexdigest()
-    raw = int(digest[:8], 16) / 0xFFFFFFFF
-    value = low + (high - low) * raw
-    return plt.get_cmap(cmap_name)(value)

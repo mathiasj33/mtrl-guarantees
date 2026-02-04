@@ -31,7 +31,7 @@ from rlg.experiments.deep_ltl.sampler import ReachAvoidFormulaSampler
 logger = logging.getLogger(__name__)
 
 
-@hydra.main(version_base="1.1", config_path="../../conf", config_name="deep_ltl")
+@hydra.main(version_base="1.1", config_path="../../conf", config_name="eval_zones")
 def main(cfg: DictConfig):
     logger.info(
         f"Running DeepLTL experiment with {cfg.eval.num_tasks} tasks and {cfg.eval.num_episodes_per_task} episodes per task"

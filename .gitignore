@@ -6,7 +6,9 @@ runs/
 ldba.png
 .VSCodeCounter/
 *_ckp/
-videos/
+data/
+guarantees/
+plots/
 
 # Mujoco playground
 madrona_mjx.csv

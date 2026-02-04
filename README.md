@@ -1,128 +1,201 @@
-# RL Guarantees
+# Probabilistic Performance Guarantees for Multi-Task Reinforcement Learning
 
-This repository contains code for computing and plotting performance guarantees for multi-task reinforcement learning benchmarks. It includes data processing, bound computation, and publication-quality plotting utilities used for the experiments.
+[![Python: 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/downloads/release/python-31212/)
+[![License: MIT](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
-## Quick Start
+This repository contains code for computing and plotting performance guarantees for multi-task reinforcement learning policies. It is the official implementation of
+[Probabilistic Performance Guarantees for Multi-Task Reinforcement Learning](https://arxiv.org/pdf/2602.02098).
 
-1) Create the environment
+<img width="1861" height="404" alt="image" src="https://github.com/user-attachments/assets/2f57e9a7-018e-4920-ae37-77473eb9210d" />
 
-```
-pixi install
-```
+https://github.com/user-attachments/assets/c7eee489-2711-4766-a56f-1cedf23e1e20
 
-2) Compute guarantees for a domain
-
-```
-pixi run python experiments/compute_guarantees_batches.py env.name=ZoneEnv run=main
-```
-
-3) Plot averaged guarantees
-
-```
-pixi run python paper/plot_zones_avg.py
-```
+https://github.com/user-attachments/assets/a9ef6807-5f67-4453-834f-070b06eb4142
 
 ## Repository Layout
 
-- `experiments/`: Scripts to compute guarantees and empirical safety curves.
-- `paper/`: Plotting scripts and figure outputs used for the paper.
+- `experiments/`: Scripts to compute guarantees and evaluate policies.
 - `conf/`: Hydra configuration files.
 - `src/rlg/`: Core library, bounds, and plotting utilities.
-- `scripts/`: Helpers for running ablations and generating plots.
-- `runs/`: Output data, logs, and CSVs created by experiments.
+- `data/`: Episode returns and task parameters for each environment (either computed or downloaded from Google Drive, see below).
+- `models/`: Pretrained policy checkpoints.
+- `guarantees/`: Computed guarantee CSVs.
+- `plots/`: Generated figures.
+- `dependencies/`: External dependencies (deepltl, mujoco_playground).
 
-## Policy Training Notes
+## Installation
 
-- The codebase includes training code using Brax for the MuJoCo benchmarks.
-- For DeepLTL, trained policies are provided; they can also be trained using the DeepLTL codebase: https://github.com/...
+### 1. Install the environment
 
-### Brax training and evaluation
+This project uses [Pixi](https://pixi.sh/) for dependency management.
 
-Train a multi-task policy (cheetah or walker):
-
-```
-pixi run python experiments/brax/train.py env.name=cheetah run=main
-```
-
-Evaluate a checkpoint to produce `episode_returns.parquet`:
-
-```
-pixi run python experiments/brax/eval.py env.name=cheetah run=main
+```bash
+pixi install
 ```
 
-Optional: render a rollout video from a checkpoint:
+For GPU support (highly recommended):
 
-```
-pixi run python experiments/brax/visualize.py env.name=cheetah run=main
-```
-
-All training/evaluation settings are in `conf/train_brax.yaml`, `conf/eval_brax.yaml`, and `conf/visualize_brax.yaml`.
-
-### DeepLTL policies
-
-Pretrained DeepLTL policies are included with the artifacts used for evaluation. To retrain, use the DeepLTL codebase (https://deep-ltl.github.io/).
-
-## Main Experiments
-
-### Compute guarantees
-
-The core experiment computes guarantees for batches of tasks and episodes.
-
-```
-pixi run python experiments/compute_guarantees_batches.py env.name=ZoneEnv run=main
+```bash
+pixi install -e gpu
 ```
 
-Key options are controlled through Hydra overrides:
+### 2. Install Rabinizer 4 (required for DeepLTL only)
 
-- `guarantees.bound` (e.g., `clopper-pearson`, `hoeffding`, `dkw`, `bernstein`)
-- `guarantees.batch_size` (tasks per batch)
-- `guarantees.num_batches`
-- `guarantees.num_episodes`
+DeepLTL relies on [Rabinizer 4](https://www7.in.tum.de/~kretinsk/rabinizer4.html) for the conversion of LTL formulae into LDBAs. Download the program and unzip it into the project directory:
 
-### Plot averaged curves
-
-Use the plotting scripts in `paper/` to visualize mean bounds with confidence bands and empirical safety:
-
-```
-pixi run python paper/plot_zones_avg.py
-pixi run python paper/plot_walker_avg.py
-pixi run python paper/plot_cheetah_avg.py
+```bash
+wget https://www7.in.tum.de/~kretinsk/rabinizer4.zip
+unzip rabinizer4.zip
+mv rabinizer4 dependencies/jaxltl/dependencies
 ```
 
-These scripts accept optional environment variables for selecting task/episode combinations:
+Rabinizer requires Java 11 to be installed on your system and `$JAVA_HOME` to be set accordingly. To test the installation, run:
 
-- `PLOT_NUM_TASKS` and `PLOT_NUM_EPISODES` for a single curve
-- `PLOT_COMBOS` for multiple curves, e.g. `50x100,100x300,200x1000`
-
-### Bound comparison ablations
-
-To compare bounds (Hoeffding/DKW/Bernstein) at fixed $(\beta,\delta)$:
-
-```
-pixi run python scripts/ablate_bounds.py --env ZoneEnv --run main \
-  --combos 50x100,100x300,200x1000 \
-  --bounds hoeffding,dkw,bernstein \
-  --beta 1e-4 --delta 1e-2
+```bash
+./dependencies/jaxltl/dependencies/rabinizer4/bin/ltl2ldba -h
 ```
 
-Plots are saved under:
+This should print a help message.
 
+## Precomputed Experiment Data
+
+Precomputed trajectory returns are available for download:
+
+**Download data:** https://drive.google.com/file/d/1A-fJSuiLhJYlwC4jkzEYNg81lLjCuQrK/view?usp=sharing
+
+Extract the archive into the project root to populate the `data/` directory.
+
+## Computing Guarantees
+
+Compute performance guarantees from episode returns data:
+
+```bash
+pixi run python experiments/compute_guarantees.py env.name=cheetah guarantees.bound=bernstein
 ```
-paper/plots/ablations/<env>/bounds_beta<...>_delta<...>/
+
+Available environments: `simple_grid`, `bridge_world/left_bridge`, `bridge_world/right_bridge`, `cheetah`, `walker`, `zones`.
+
+Key configuration options (see `conf/compute_guarantees.yaml`):
+
+- `guarantees.bound`: Bound type (`clopper-pearson`, `hoeffding`, `dkw`, `bernstein`)
+- `guarantees.num_tasks`: Number of tasks per batch
+- `guarantees.num_episodes`: Episodes per task
+- `guarantees.num_batches`: Number of independent batches (for computing standard deviations)
+- `guarantees.beta`: Per-task confidence level
+- `guarantees.delta`: Overall confidence level
+
+## Plotting Guarantees
+
+Generate plots from computed guarantees:
+
+```bash
+pixi run python experiments/plot.py env.name=cheetah plot.combinations=[200x1000]
 ```
 
-### Beta/Delta ablations
+Configuration options are in `conf/plot.yaml`. Plots are saved to `plots/<env>/`.
 
-To sweep over $(\beta,\delta)$ combinations and generate organized outputs:
+## Evaluating Policies
 
+Pretrained policies are provided in the `models/` directory. To regenerate the episode returns data, or evaluate the policies on a different task distribution:
+
+### Bridge Environment
+
+Evaluate the left or right bridge policy:
+
+```bash
+pixi run -e gpu python experiments/bridge_world/eval.py policy=left_bridge
 ```
-pixi run python scripts/ablate_beta_delta.py --env ZoneEnv --run main \
-  --combos 50x100,100x300,200x1000 \
-  --beta-delta '1e-4,1e-1;1e-4,1e-2;1e-6,1e-1;1e-6,1e-2;1e-6,1e-3'
+
+Configuration options (see `conf/eval_bridge.yaml`):
+
+- `policy`: `left_bridge` or `right_bridge`
+- `wind_sampling`: Slipperiness distribution
+- `eval.num_tasks`: Number of tasks to evaluate
+- `eval.num_episodes_per_task`: Episodes per task
+
+### Brax Environments (Cheetah, Walker)
+
+Evaluate a trained multi-task policy:
+
+```bash
+pixi run -e gpu python experiments/brax/eval.py env.name=cheetah task_sampling.log_tau_min=-1.0 task_sampling.log_tau_max=1.0
 ```
 
-## Reproducibility
+Configuration options (see `conf/eval_brax.yaml`):
 
-- All experiments are driven by Hydra configs in `conf/`.
-- Outputs are stored in `runs/<env>/eval/<run>/`.
-- Plot scripts are deterministic given the generated CSVs.
+- `eval.num_tasks`: Number of tasks to evaluate
+- `eval.num_episodes_per_task`: Episodes per task
+- `checkpoint_path`: Path to the model checkpoint
+
+Results are saved to `data/<env>/episode_returns.parquet`.
+
+Optional: render a rollout video:
+
+```bash
+pixi run python experiments/brax/visualize.py env.name=cheetah task.mass_scale=1.3 task.length_scale=0.7
+```
+
+We provide videos of the pre-trained cheetah and walker policies on various tasks in the `videos/` directory.
+
+### DeepLTL (Zones)
+
+Evaluate the pretrained DeepLTL policy on sampled LTL tasks:
+
+```bash
+pixi run -e gpu python experiments/deep_ltl/eval.py
+```
+
+Configuration options are in `conf/eval_zones.yaml`:
+
+- `eval.num_tasks`: Number of LTL tasks to sample
+- `eval.num_episodes_per_task`: Episodes per task
+- `task_sampling.depth/reach/avoid`: Task complexity ranges
+
+Results are saved to `data/zones/episode_returns.parquet`.
+
+### Simple Grid (Motivating Experiment)
+
+Reproduce the motivating experiment by evaluating the optimal policy:
+
+```bash
+pixi run python experiments/simple_grid/run.py
+```
+
+This generates `data/simple_grid/episode_returns.parquet` and `data/simple_grid/actual_guarantees.csv`.
+
+## Training Policies
+
+For completeness, we provide code to train multi-task policies from scratch in the environments.
+
+### Brax Environments (Cheetah, Walker)
+
+Train a multi-task policy using PPO:
+
+```bash
+pixi run -e gpu python experiments/brax/train.py env.name=cheetah run=tmp
+```
+
+Configuration options (see `conf/train_brax.yaml`):
+
+- `env.name`: Environment (`cheetah` or `walker`)
+- `task_sampling.log_tau_min/log_tau_max`: Log-uniform task distribution bounds
+- `checkpoint_path`: Where to save the trained model
+
+### DeepLTL
+
+Train a DeepLTL policy on the Zones environment using the `jaxltl` dependency:
+
+```bash
+cd dependencies/jaxltl
+pixi run -e gpu python scripts/train.py experiment=deep_ltl/zones run=tmp num_seeds=1
+```
+
+Policies are saved in `dependencies/jaxltl/runs/tmp`.
+
+## License
+
+This project is released under the [Apache License 2.0](LICENSE).
+
+This repository includes the following dependencies with their respective licenses:
+
+- **mujoco_playground**: Apache License 2.0

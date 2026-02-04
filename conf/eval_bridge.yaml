@@ -1,9 +1,6 @@
 defaults:
-  - hydra: experiment
+  - hydra: simple
   - _self_
-
-name: eval_bridge
-run: main
 
 # Policy to evaluate: "left_bridge" or "right_bridge"
 policy: left_bridge
@@ -28,7 +25,7 @@ batch_size: 65536 # Number of episodes to evaluate in parallel
 
 # Output settings
 output:
-  dir: ../bridge_world/${policy}
+  dir: data/bridge_world/${policy}
   results_file: episode_returns.parquet
   tasks_file: task_params.parquet
 

@@ -1,6 +1,5 @@
 """Utility functions for Brax experiments."""
 
-from pathlib import Path
 from typing import NamedTuple
 
 import jax
@@ -10,14 +9,6 @@ from rlg.experiments.brax.cheetah_robust import CheetahRobust
 from rlg.experiments.brax.walker_robust import WalkerRobust
 
 _env_registry = {"walker": WalkerRobust, "cheetah": CheetahRobust}
-
-
-def find_latest_checkpoint(base_path: Path) -> Path:
-    """Find the latest checkpoint in the given directory."""
-    checkpoints = [f for f in base_path.glob("*") if f.is_dir()]
-    if not checkpoints:
-        raise ValueError(f"No checkpoints found in {base_path}")
-    return max(checkpoints, key=lambda f: int(f.name))
 
 
 def load_env(name: str) -> WalkerRobust | CheetahRobust:
