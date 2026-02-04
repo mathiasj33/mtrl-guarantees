@@ -1,8 +1,0 @@
-defaults:
-  - hydra: simple
-  - _self_
-
-env:
-  name: BridgeWorld
-policy: "teleop" # "teleop" or "random"
-print_debug: false
