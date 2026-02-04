@@ -1,0 +1,30 @@
+defaults:
+  - hydra: experiment
+  - _self_
+
+name: guarantees_batches
+run: main
+
+env:
+  name: simple_grid
+
+results:
+  dir: ../${env.name}/eval/${run}
+  results_file: episode_returns.parquet
+  source_dir: ""
+
+guarantees:
+  bound: clopper-pearson
+  min_return: 0.0
+  max_return: 1.0
+  use_existing_params: true
+  batch_size: 100
+  num_batches: 10
+  num_episodes: [1000]
+  summary_points: 600
+  param_source_dir: ""
+  beta: 1e-4
+  delta: 1e-2
+  step_size: 1
+
+n_jobs: 8

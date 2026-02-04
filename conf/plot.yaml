@@ -6,7 +6,7 @@ name: plot
 run: main
 
 env:
-  name: cheetah
+  name: simple_grid
 
 results:
   dir: ../${env.name}/eval/${run}

@@ -6,9 +6,18 @@ import numpy as np
 import pandas as pd
 from omegaconf import DictConfig
 
-from rlg import PAPER_DIR, RUN_DIR
+from rlg import RUN_DIR
 from rlg.experiments.simple_grid import WorldParams
-from rlg.plotting.utils import ANTHROPIC, apply_anthropic_style, setup_latex_fonts
+from rlg.plotting.utils import (
+    ANTHROPIC,
+    apply_anthropic_style,
+    combo_color,
+    guarantees_batches_filename,
+    plot_suffix_from_combos,
+    resolve_plot_combos,
+    setup_latex_fonts,
+    summarize_step_curves,
+)
 
 
 @hydra.main(version_base="1.1", config_path="../conf", config_name="simple_grid")
@@ -17,12 +26,10 @@ def main(cfg: DictConfig):
 
     params: WorldParams = hydra.utils.instantiate(cfg.world_params)
 
-    # --- PDF ---
     dist = params.slip_dist
     xs = np.linspace(0, 0.2, 1000)
     pdf = dist.pdf(xs)
 
-    # ===== Plot 1: Slip Probability (Quadratic) =====
     fig1, ax0 = plt.subplots(figsize=(6, 6), dpi=300)
     fig1.patch.set_facecolor("white")
     apply_anthropic_style(ax0)
@@ -52,35 +59,46 @@ def main(cfg: DictConfig):
     print(f"Plot 1 saved to: {output_path1}")
     plt.close(fig1)
 
-    # ===== Plot 2: Performance Guarantees (Quadratic) =====
     path = RUN_DIR / "simple_grid" / "eval" / "main"
-    guarantees = pd.read_csv(path / "guarantees.csv")
+    combos = resolve_plot_combos(100, 1000)
     actual_guarantees = pd.read_csv(path / "actual_guarantees.csv")
-    num_tasks = 50
-    num_episodes = 1000
-    guarantees = guarantees.query(
-        "num_tasks == @num_tasks and num_episodes == @num_episodes"
-    )
 
     fig2, ax1 = plt.subplots(figsize=(6, 6), dpi=300)
     fig2.patch.set_facecolor("white")
     apply_anthropic_style(ax1)
 
-    # swapped: x = guarantees (t), y = probs (1-δ)
-    ax1.plot(
-        guarantees["guarantee"],
-        guarantees["prob"],
-        color=ANTHROPIC["red_dark"],
-        linewidth=2.8,
-        solid_capstyle="round",
-        drawstyle="steps-pre",
-        label=r"\textbf{Certified Bound $1-\varepsilon$}",
-    )
+    for num_tasks, num_episodes in combos:
+        color = combo_color(num_tasks, num_episodes, "Reds")
+        guarantees = pd.read_csv(
+            path / guarantees_batches_filename(num_tasks, num_episodes)
+        )
+        grid, mean, std = summarize_step_curves(
+            guarantees, num_tasks=num_tasks, num_episodes=num_episodes, num_points=600
+        )
+        band_low = np.clip(mean - 1.5 * std, 0.0, 1.0)
+        band_high = np.clip(mean + 1.5 * std, 0.0, 1.0)
+        ax1.fill_between(
+            grid,
+            band_low,
+            band_high,
+            color=color,
+            alpha=0.22,
+            step="pre",
+        )
+        ax1.plot(
+            grid,
+            mean,
+            color=color,
+            linewidth=2.8,
+            solid_capstyle="round",
+            drawstyle="steps-pre",
+            label=rf"\textbf{{Certified Bound ({num_tasks}, {num_episodes})}}",
+        )
     ax1.plot(
         actual_guarantees["guarantee"],
         actual_guarantees["actual_safety"],
         color=ANTHROPIC["orange_light"],
-        linewidth=2.8,
+        linewidth=3.2,
         linestyle="--",
         dash_capstyle="round",
         label=r"\textbf{Actual Safety $S_{\mathcal{D}}^\pi(B)$}",
@@ -111,13 +129,10 @@ def main(cfg: DictConfig):
     ax1.set_xlim(left=0.5)
     fig2.tight_layout(pad=0.8)
 
-    # Save as high-quality PDF
-    output_path2 = Path.cwd() / "plot_guarantees.pdf"
-    output_path2 = PAPER_DIR / "plots/simple_grid.pdf"
+    suffix = plot_suffix_from_combos(combos)
+    output_path2 = Path.cwd() / f"plot_guarantees_avg_{suffix}.pdf"
     plt.savefig(output_path2, format="pdf", dpi=300, bbox_inches="tight")
     print(f"Plot 2 saved to: {output_path2}")
-
-    # plt.show()
 
 
 if __name__ == "__main__":

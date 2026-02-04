@@ -1,6 +1,5 @@
 [project]
 authors = [
-    { name = "Mathias Jackermeier", email = "mathias.jackermeier@outlook.com" },
 ]
 name = "jaxltl"
 requires-python = ">= 3.12"
