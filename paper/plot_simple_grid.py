@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from omegaconf import DictConfig
 
-from rlg import RUN_DIR
+from rlg import PAPER_DIR, RUN_DIR
 from rlg.experiments.simple_grid import WorldParams
 from rlg.plotting.utils import ANTHROPIC, apply_anthropic_style, setup_latex_fonts
 
@@ -113,6 +113,7 @@ def main(cfg: DictConfig):
 
     # Save as high-quality PDF
     output_path2 = Path.cwd() / "plot_guarantees.pdf"
+    output_path2 = PAPER_DIR / "plots/simple_grid.pdf"
     plt.savefig(output_path2, format="pdf", dpi=300, bbox_inches="tight")
     print(f"Plot 2 saved to: {output_path2}")
 

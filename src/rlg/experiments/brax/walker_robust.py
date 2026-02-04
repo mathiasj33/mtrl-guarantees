@@ -146,7 +146,7 @@ class WalkerRobust(PlanarWalker):
 
     def _augment_obs_with_task(self, obs, task_params: TaskParams):
         task_array = jp.array([task_params.mass_scale, task_params.length_scale])
-        return jp.concatenate([obs, jp.log(task_array)], axis=-1)
+        return jp.concatenate([obs, jp.log(task_array), jp.array([0.0])], axis=-1)
 
     def render(
         self,

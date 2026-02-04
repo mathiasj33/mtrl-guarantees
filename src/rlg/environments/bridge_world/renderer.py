@@ -1,7 +1,9 @@
+from pathlib import Path
 from typing import override
 
 import jax
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
 import numpy as np
 import pygame
 from jaxltl.environments.renderer.renderer import DiscreteTimeRenderer
@@ -55,6 +57,28 @@ class BridgeWorldRenderer(DiscreteTimeRenderer):
         self.border_color = (0, 0, 0)
 
         self._canvas = pygame.Surface((self._screen_width, self._screen_height))
+        self._save_path: Path | None = None
+
+    def set_save_path(self, path: str | Path) -> None:
+        """Set the path to save rendered frames as PDF."""
+        self._save_path = Path(path)
+
+    def _save_to_pdf(self) -> None:
+        """Save the current canvas to a PDF file."""
+        if self._save_path is None:
+            return
+
+        # Convert pygame surface to numpy array
+        img_array = pygame.surfarray.array3d(self._canvas)
+        # Transpose from (width, height, channels) to (height, width, channels)
+        img_array = np.transpose(img_array, (1, 0, 2))
+
+        # Save using matplotlib
+        fig, ax = plt.subplots(figsize=(8, 8))
+        ax.imshow(img_array)
+        ax.axis("off")
+        fig.savefig(self._save_path, format="pdf", bbox_inches="tight", pad_inches=0)
+        plt.close(fig)
 
     @override
     def render(
@@ -108,6 +132,7 @@ class BridgeWorldRenderer(DiscreteTimeRenderer):
 
         self._screen.blit(self._canvas, (0, 0))
         pygame.display.flip()
+        self._save_to_pdf()
 
     @override
     def get_action(self, key: int) -> jax.Array:
