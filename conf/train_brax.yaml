@@ -1,5 +1,5 @@
 defaults:
-  - hydra: experiment
+  - hydra: simple
   - _self_
 
 name: train
